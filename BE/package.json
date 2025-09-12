@@ -1,0 +1,20 @@
+{
+  "name": "be",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "npx tsc -b",
+    "dev": "npm run build && nodemon dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "mongoose": "^8.18.1",
+    "nodemon": "^3.1.10",
+    "typescript": "^5.9.2"
+  }
+}
