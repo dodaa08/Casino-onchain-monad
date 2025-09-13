@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+import { ethers } from "hardhat";
 
 async function main() {
   console.log("🚀 Deploying Pool contract...");
@@ -16,7 +16,6 @@ async function main() {
 
   // Wait for deployment
   await pool.deployed();
-
 
   console.log("✅ Pool deployed to:", pool.address);
 }

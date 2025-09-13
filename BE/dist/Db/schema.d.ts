@@ -4,6 +4,7 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    DepositBalance: number;
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
@@ -13,6 +14,7 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    DepositBalance: number;
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
@@ -24,6 +26,7 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    DepositBalance: number;
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
@@ -39,6 +42,7 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    DepositBalance: number;
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
@@ -48,6 +52,7 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    DepositBalance: number;
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
@@ -59,6 +64,7 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    DepositBalance: number;
     balance: number;
     totalEarned: number;
     roundsPlayed: number;

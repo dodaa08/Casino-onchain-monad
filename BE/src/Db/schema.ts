@@ -15,20 +15,19 @@ const userSchema = new Schema(
   
   export const User = model("User", userSchema);
 
-
   
 
-  const gameSchema = new Schema(
-    {
-      player: { type: Schema.Types.ObjectId, ref: "User", required: true },
-      status: { type: String, enum: ["active", "cashed_out", "lost"], default: "active" },
-      finalPayout: { type: Number, default: 0 }, // only stored when game ends
-      roundsCompleted: { type: Number, default: 0 },
-      startedAt: { type: Date, default: Date.now },
-      endedAt: { type: Date },
-    },
-    { timestamps: true }
-  );
+  // const gameSchema = new Schema(
+  //   {
+  //     player: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  //     status: { type: String, enum: ["active", "cashed_out", "lost"], default: "active" },
+  //     finalPayout: { type: Number, default: 0 }, // only stored when game ends
+  //     roundsCompleted: { type: Number, default: 0 },
+  //     startedAt: { type: Date, default: Date.now },
+  //     endedAt: { type: Date },
+  //   },
+  //   { timestamps: true }
+  // );
 
 
   const payoutSchema = new Schema(
@@ -42,4 +41,4 @@ const userSchema = new Schema(
 
   export const Payout = model("Payout", payoutSchema);
   
-  export const Game = model("Game", gameSchema);
+  // export const Game = model("Game", gameSchema);
