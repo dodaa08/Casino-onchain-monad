@@ -4,14 +4,7 @@ const userSchema = new Schema({
     balance: { type: Number, default: 0 }, // current on-platform balance (after deposits/cashouts)
     totalEarned: { type: Number, default: 0 }, // lifetime earnings
     roundsPlayed: { type: Number, default: 0 }, // total sessions
-    payouts: [
-        {
-            amount: Number,
-            txHash: String,
-            status: { type: String, enum: ["pending", "success", "failed"], default: "pending" },
-            createdAt: { type: Date, default: Date.now },
-        },
-    ],
+    payouts: { type: Number, default: 0 }, // final payout amount
 }, { timestamps: true });
 export const User = model("User", userSchema);
 const gameSchema = new Schema({
@@ -22,5 +15,11 @@ const gameSchema = new Schema({
     startedAt: { type: Date, default: Date.now },
     endedAt: { type: Date },
 }, { timestamps: true });
+const payoutSchema = new Schema({
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    amount: { type: Number, required: true },
+    txHash: { type: String, required: true },
+}, { timestamps: true });
+export const Payout = model("Payout", payoutSchema);
 export const Game = model("Game", gameSchema);
 //# sourceMappingURL=schema.js.map

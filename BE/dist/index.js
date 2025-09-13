@@ -5,9 +5,11 @@ import dotenv from "dotenv";
 dotenv.config();
 const PORT = process.env.PORT;
 const MONGO_URL = process.env.MONGO_DB_URL || "";
+// routes
+import CacheRouter from "./routes/cache/cache.js";
 const app = express();
 app.use(express.json());
-// app.use("/api", cacheRoutes);
+app.use("/api/cache", CacheRouter);
 const connectDB_and_cache = async () => {
     try {
         await mongoose.connect(MONGO_URL);

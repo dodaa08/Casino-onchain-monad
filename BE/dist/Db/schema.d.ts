@@ -7,22 +7,7 @@ export declare const User: import("mongoose").Model<{
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
-    payouts: import("mongoose").Types.DocumentArray<{
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }, import("mongoose").Types.Subdocument<import("bson").ObjectId, any, {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }> & {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }>;
+    payouts: number;
 }, {}, {}, {}, import("mongoose").Document<unknown, {}, {
     createdAt: NativeDate;
     updatedAt: NativeDate;
@@ -31,22 +16,7 @@ export declare const User: import("mongoose").Model<{
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
-    payouts: import("mongoose").Types.DocumentArray<{
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }, import("mongoose").Types.Subdocument<import("bson").ObjectId, any, {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }> & {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }>;
+    payouts: number;
 }, {}, {
     timestamps: true;
 }> & {
@@ -57,22 +27,7 @@ export declare const User: import("mongoose").Model<{
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
-    payouts: import("mongoose").Types.DocumentArray<{
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }, import("mongoose").Types.Subdocument<import("bson").ObjectId, any, {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }> & {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }>;
+    payouts: number;
 } & {
     _id: import("mongoose").Types.ObjectId;
 } & {
@@ -87,22 +42,7 @@ export declare const User: import("mongoose").Model<{
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
-    payouts: import("mongoose").Types.DocumentArray<{
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }, import("mongoose").Types.Subdocument<import("bson").ObjectId, any, {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }> & {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }>;
+    payouts: number;
 }, import("mongoose").Document<unknown, {}, import("mongoose").FlatRecord<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
@@ -111,22 +51,7 @@ export declare const User: import("mongoose").Model<{
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
-    payouts: import("mongoose").Types.DocumentArray<{
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }, import("mongoose").Types.Subdocument<import("bson").ObjectId, any, {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }> & {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }>;
+    payouts: number;
 }>, {}, import("mongoose").ResolveSchemaOptions<{
     timestamps: true;
 }>> & import("mongoose").FlatRecord<{
@@ -137,22 +62,64 @@ export declare const User: import("mongoose").Model<{
     balance: number;
     totalEarned: number;
     roundsPlayed: number;
-    payouts: import("mongoose").Types.DocumentArray<{
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }, import("mongoose").Types.Subdocument<import("bson").ObjectId, any, {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }> & {
-        status: "pending" | "success" | "failed";
-        createdAt: NativeDate;
-        amount?: number | null;
-        txHash?: string | null;
-    }>;
+    payouts: number;
+}> & {
+    _id: import("mongoose").Types.ObjectId;
+} & {
+    __v: number;
+}>>;
+export declare const Payout: import("mongoose").Model<{
+    createdAt: NativeDate;
+    updatedAt: NativeDate;
+} & {
+    user: import("mongoose").Types.ObjectId;
+    amount: number;
+    txHash: string;
+}, {}, {}, {}, import("mongoose").Document<unknown, {}, {
+    createdAt: NativeDate;
+    updatedAt: NativeDate;
+} & {
+    user: import("mongoose").Types.ObjectId;
+    amount: number;
+    txHash: string;
+}, {}, {
+    timestamps: true;
+}> & {
+    createdAt: NativeDate;
+    updatedAt: NativeDate;
+} & {
+    user: import("mongoose").Types.ObjectId;
+    amount: number;
+    txHash: string;
+} & {
+    _id: import("mongoose").Types.ObjectId;
+} & {
+    __v: number;
+}, Schema<any, import("mongoose").Model<any, any, any, any, any, any>, {}, {}, {}, {}, {
+    timestamps: true;
+}, {
+    createdAt: NativeDate;
+    updatedAt: NativeDate;
+} & {
+    user: import("mongoose").Types.ObjectId;
+    amount: number;
+    txHash: string;
+}, import("mongoose").Document<unknown, {}, import("mongoose").FlatRecord<{
+    createdAt: NativeDate;
+    updatedAt: NativeDate;
+} & {
+    user: import("mongoose").Types.ObjectId;
+    amount: number;
+    txHash: string;
+}>, {}, import("mongoose").ResolveSchemaOptions<{
+    timestamps: true;
+}>> & import("mongoose").FlatRecord<{
+    createdAt: NativeDate;
+    updatedAt: NativeDate;
+} & {
+    user: import("mongoose").Types.ObjectId;
+    amount: number;
+    txHash: string;
 }> & {
     _id: import("mongoose").Types.ObjectId;
 } & {
@@ -162,8 +129,8 @@ export declare const Game: import("mongoose").Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    status: "active" | "cashed_out" | "lost";
     player: import("mongoose").Types.ObjectId;
+    status: "active" | "cashed_out" | "lost";
     finalPayout: number;
     roundsCompleted: number;
     startedAt: NativeDate;
@@ -172,8 +139,8 @@ export declare const Game: import("mongoose").Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    status: "active" | "cashed_out" | "lost";
     player: import("mongoose").Types.ObjectId;
+    status: "active" | "cashed_out" | "lost";
     finalPayout: number;
     roundsCompleted: number;
     startedAt: NativeDate;
@@ -184,8 +151,8 @@ export declare const Game: import("mongoose").Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    status: "active" | "cashed_out" | "lost";
     player: import("mongoose").Types.ObjectId;
+    status: "active" | "cashed_out" | "lost";
     finalPayout: number;
     roundsCompleted: number;
     startedAt: NativeDate;
@@ -200,8 +167,8 @@ export declare const Game: import("mongoose").Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    status: "active" | "cashed_out" | "lost";
     player: import("mongoose").Types.ObjectId;
+    status: "active" | "cashed_out" | "lost";
     finalPayout: number;
     roundsCompleted: number;
     startedAt: NativeDate;
@@ -210,8 +177,8 @@ export declare const Game: import("mongoose").Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    status: "active" | "cashed_out" | "lost";
     player: import("mongoose").Types.ObjectId;
+    status: "active" | "cashed_out" | "lost";
     finalPayout: number;
     roundsCompleted: number;
     startedAt: NativeDate;
@@ -222,8 +189,8 @@ export declare const Game: import("mongoose").Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    status: "active" | "cashed_out" | "lost";
     player: import("mongoose").Types.ObjectId;
+    status: "active" | "cashed_out" | "lost";
     finalPayout: number;
     roundsCompleted: number;
     startedAt: NativeDate;
