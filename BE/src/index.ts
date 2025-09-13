@@ -23,7 +23,7 @@ app.use("/api/cache", CacheRouter);
 app.use("/api/payouts", PayoutsRouter);
 app.use("/api/depositFunds", DepositFundsRouter);
 app.use("/api/users", UserRouter);
-// app.use("/api/withdrawFunds", WithdrawFundsRouter);
+app.use("/api/withdrawFunds", WithdrawFundsRouter);
 
 const connectDB_and_cache = async () => {
      try{
