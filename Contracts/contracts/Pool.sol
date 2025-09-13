@@ -47,6 +47,24 @@ contract Pool {
         require(success, "Withdraw failed");
     }
 
+
+    // User withdrawal function
+
+    // this function needs to be redeployed with the contract address 
+
+    // function userWithdraw(address to, uint256 amount) external {
+    //     require(to != address(0), "Invalid address");
+    //     require(amount > 0, "Amount must be greater than 0");
+    //     require(address(this).balance >= amount, "Not enough funds");
+        
+    //     (bool success, ) = to.call{value: amount}("");
+    //     require(success, "Transfer failed");
+    // }
+
+    
+
+
+
     // Transfer ownership to new address
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "Invalid address");
