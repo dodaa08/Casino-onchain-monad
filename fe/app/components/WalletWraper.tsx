@@ -26,7 +26,13 @@ function WalletWraper({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
+        <RainbowKitProvider theme={darkTheme({
+          accentColor: '#62CF13', // emerald-500 to match your green theme
+          accentColorForeground: 'white',
+          borderRadius: 'medium',
+          fontStack: 'system',
+          overlayBlur: 'small',
+        })}>
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>
