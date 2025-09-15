@@ -1,5 +1,6 @@
 import xicon from "@/public/xicon.png"
 import Image from "next/image"
+import Connectbutton from "./Connectbutton"
 
 const Navbar = ()=>{
     return (
@@ -21,8 +22,6 @@ const Navbar = ()=>{
                         <span>Referrals</span>
                     </button>
                 </div>  
-
-
 
                 {/*  Center components  */}
                 <div className="flex items-center gap-2">
@@ -61,7 +60,7 @@ const Navbar = ()=>{
                         </div>
 
                         <div className="mr-2">
-                            <button className="border border-lime-900 text-gray-200 px-3 py-1.5 rounded-lg hover:bg-lime-600/20 transition-colors">Connect Wallet</button>
+                            <Connectbutton />
                         </div>
                     </div>
                 </div>
