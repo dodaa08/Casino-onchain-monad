@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 
 import LandingPage from "./(root)/Landing/page";
-import WalletWraper from "./components/WalletWraper";
-
 
 const Home = ()=>{
   const [isSmall, setIsSmall] = useState(false)
@@ -30,9 +28,7 @@ const Home = ()=>{
   return (
     <>
     <div>
-      <WalletWraper>
       <LandingPage />
-      </WalletWraper>
     </div>
     </>
   )
