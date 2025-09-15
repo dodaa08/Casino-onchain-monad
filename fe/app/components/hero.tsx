@@ -1,14 +1,28 @@
 import Tileboard from "./tileboard";
 import Bottombar from "./bottombar";
+import Leaderboard from "./leaderboard";
+
 
 const Hero = ()=>{
     return(
         <>
-        <div className="">
+        <div className="flex w-full items-stretch overflow-x-hidden">
+            <div className="flex flex-row w-full gap-0">
+                {/* Left: Scrollable Tileboard sidebar touching leaderboard border */}
+                <aside className="flex-1 min-w-[720px] h-[calc(100vh-8rem)] overflow-y-auto pr-4">
+                    <Tileboard />
+                </aside>
 
-            <Tileboard />
+                {/* Right: Leaderboard pinned to the far right with narrow width */}
+                <div className="ml-auto w-[300px] shrink-0 border-l border-gray-800 pl-4 pr-2">
+                    <Leaderboard />
+                </div>
+            </div>
+        </div>
+
+        {/* Sticky bottom bar overlaying at the bottom, independent from sidebar scroll */}
+        <div className="sticky bottom-0 left-0 right-0 z-20">
             <Bottombar />
-  
         </div>
         </>
     )

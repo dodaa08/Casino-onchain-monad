@@ -47,11 +47,11 @@ const Navbar = ()=>{
                 {/*  Right side components  */}
                 <div className="flex items-center">
                     <div className="flex items-center gap-6">
-                        <div className="">
+                        {/* <div className="">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5 text-lime-400">
                                 <path fill="currentColor" d="M22.54 0L14.37 8.71l9.62 13.29h-7.54l-5.33-7.08-6.25 7.08H0l8.67-9.82L0 0h7.88l4.8 6.67L18.67 0h3.87z"/>
                             </svg>
-                        </div>
+                        </div> */}
 
                         <div className="flex items-center gap-2 text-sm">
                             <div className="w-5 h-5 rounded-full bg-lime-400 flex items-center justify-center shadow-[0_0_12px_rgba(163,230,53,0.6)]">
@@ -61,7 +61,7 @@ const Navbar = ()=>{
                         </div>
 
                         <div className="mr-2">
-                            <button className="border border-lime-600 text-gray-200 px-3 py-1.5 rounded-lg hover:bg-lime-600/20 transition-colors"> Sign in </button>
+                            <button className="border border-lime-900 text-gray-200 px-3 py-1.5 rounded-lg hover:bg-lime-600/20 transition-colors">Connect Wallet</button>
                         </div>
                     </div>
                 </div>

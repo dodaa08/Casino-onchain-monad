@@ -6,21 +6,14 @@ const LandingPage = ()=>{
 
     return (
         <>
-        <div className="bg-black w-full h-max">
-        
+        <div className="bg-black w-full h-screen">
                  <Navbar />
-            
-
-            <div className="flex items-center min-h-[70vh]">
+  
+            <div className="]">
 
           <div className="flex-1 flex justify-center ml-70">
             <Hero />
-          </div>
-
-        <div className="">
-            <Leaderboard />
-          </div>
-
+          </div>    
             </div>
           
         </div>
