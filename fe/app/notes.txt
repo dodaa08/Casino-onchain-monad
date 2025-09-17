@@ -1,6 +1,3 @@
-1. Write an api for Play and connect the existing apis with it
-2. Add those redis api and cache tiles and prepare that logic, add tile and death tile logic from the fe though
-
-3. Fetch leader board real time 
-4. build a conditional bottom bar after starting to show and cache a no. to be updaed on each row click in which I din't select tiles
-5. each row on click allowed
+1. Intefrating the real caching of game state on Reload
+2. Understand the tileBoard and all the integrations
+3. Work on deposit funds, demos etc..

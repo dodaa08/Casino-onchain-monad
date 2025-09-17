@@ -1,8 +1,12 @@
-import xicon from "@/public/xicon.png"
-import Image from "next/image"
+"use client";
+
+// import xicon from "@/public/xicon.png"
+// import Image from "next/image"
 import Connectbutton from "./Connectbutton"
 
 const Navbar = ()=>{
+    // const {address} = useAccount();
+
     return (
         <>
         <div className="flex justify-center py-5 w-full border-b border-lime-900 bg-black/90">
@@ -60,7 +64,10 @@ const Navbar = ()=>{
                         </div>
 
                         <div className="mr-2">
+                            {/* <button onClick={handleCreateuser}>  */}
                             <Connectbutton />
+                           
+                            {/* </button> */}
                         </div>
                     </div>
                 </div>

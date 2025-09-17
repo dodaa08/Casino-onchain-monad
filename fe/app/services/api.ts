@@ -11,6 +11,11 @@ type CacheTilePayload = {
   walletAddress: string;
 };
 
+type CreateUserPayload = {
+  walletAddress: string;
+  balance: number;
+};
+
 export async function cacheTile(p: CacheTilePayload) {
   console.log("[API] cache-tiles ->", p);
   const res = await fetch(`${base}/api/cache/cache-tiles`, {
@@ -30,4 +35,40 @@ export async function cachePayout(p: { key: string; value: number; roundEnded: b
   });
   if (!res.ok) throw new Error(`cachePayout failed: ${res.status}`);
   return res.json();
+}
+
+
+
+
+export async function createUser(payload : CreateUserPayload){
+     const res = await fetch(`${base}/api/users/create-user`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        walletAddress: payload.walletAddress,
+        balance: payload.balance,
+      }),
+     });
+
+
+     const data = await res.json().catch(() => ({}));
+    //  const data = await res.json();
+    if(!res.ok) {
+      console.error("[API] createUser failed", res.status, data);
+      throw new Error(`createUser failed: ${res.status}`);
+    }
+     if( data?.message === "User already exists") {
+      console.log("[API] User already exists:", payload.walletAddress);
+      return { success: false, exists: true, ...data };
+    }
+     console.log("[API] User created successfully", data);
+     return data;
+}
+
+
+
+export async function getUser(walletAddress : string){
+  const res = await fetch(`${base}/api/users/get-user/${walletAddress}`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+  });
+  const data = await res.json();
+  return data;
 }
