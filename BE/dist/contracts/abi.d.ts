@@ -2,10 +2,27 @@ export declare const PoolABI: ({
     inputs: never[];
     stateMutability: string;
     type: string;
+    anonymous?: never;
     name?: never;
     outputs?: never;
 } | {
-    inputs: never[];
+    anonymous: boolean;
+    inputs: {
+        indexed: boolean;
+        internalType: string;
+        name: string;
+        type: string;
+    }[];
+    name: string;
+    type: string;
+    stateMutability?: never;
+    outputs?: never;
+} | {
+    inputs: {
+        internalType: string;
+        name: string;
+        type: string;
+    }[];
     name: string;
     outputs: {
         internalType: string;
@@ -14,15 +31,6 @@ export declare const PoolABI: ({
     }[];
     stateMutability: string;
     type: string;
-} | {
-    inputs: {
-        internalType: string;
-        name: string;
-        type: string;
-    }[];
-    name: string;
-    outputs: never[];
-    stateMutability: string;
-    type: string;
+    anonymous?: never;
 })[];
 //# sourceMappingURL=abi.d.ts.map

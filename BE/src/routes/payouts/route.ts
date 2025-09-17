@@ -3,13 +3,26 @@ import { Router } from "express";
 import { Payout } from "../../Db/schema.js";
 import { PoolABI } from "../../contracts/abi.js";
 import { ethers } from "ethers";
-import { JsonRpcProvider } from "ethers";
+import { JsonRpcProvider, Wallet } from "ethers";
+import dotenv from "dotenv";
+dotenv.config();
 
-// const poolAddress = process.env.Contract_Address || "";
-const poolAddress = process.env.Contract_Address || "";
-const provider = new JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "");
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const signer = new ethers.Wallet(PRIVATE_KEY, provider);
+const rawPk = (process.env.PRIVATE_KEY || "").trim();
+if (!rawPk) throw new Error("Missing PRIVATE_KEY");
+const pk = rawPk.startsWith("0x") ? rawPk : `0x${rawPk}`;
+if (!/^0x[0-9a-fA-F]{64}$/.test(pk)) throw new Error("PRIVATE_KEY must be 0x + 64 hex");
+
+const rpcUrl = (process.env.MONAD_TESTNET_RPC || "").trim();
+if (!rpcUrl) throw new Error("Missing MONAD_TESTNET_RPC");
+
+const provider = new JsonRpcProvider(rpcUrl);
+export const payoutWallet = new Wallet(pk, provider);
+const poolAddress = (process.env.Contract_Address || "").trim();
+if (!/^0x[0-9a-fA-F]{40}$/.test(poolAddress)) {
+  throw new Error("Invalid Contract_Address");
+}
+// const provider = new JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "");
+const signer = new ethers.Wallet(pk, provider);
 const poolContract = new ethers.Contract(poolAddress, PoolABI, signer) as any;
 
 const PayoutsRouter = Router();
@@ -68,7 +81,7 @@ const payouts = async (req: any, res: any) => {
 
 
 
-PayoutsRouter.post("/payouts", payouts);
+PayoutsRouter.post("/", payouts);
 
 export default PayoutsRouter;
 

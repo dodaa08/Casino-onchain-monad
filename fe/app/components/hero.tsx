@@ -1,9 +1,23 @@
+"use client";
+
 import Tileboard from "./tileboard";
 import Bottombar from "./bottombar";
 import Leaderboard from "./leaderboard";
-
+import { useGame } from "../store/useGame";
+import { useEffect } from "react";
+import { useAccount } from "wagmi";
 
 const Hero = ()=>{
+    const { start, setSessionId } = useGame();
+    const { address: walletAddress } = useAccount();
+
+
+    useEffect(() => {
+        if(walletAddress){
+            setSessionId(crypto.randomUUID());
+        }
+    }, [walletAddress]);
+    
     return(
         <>
         <div className="flex w-full items-stretch overflow-x-hidden">
