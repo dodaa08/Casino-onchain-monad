@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
-import { getSession } from "../services/api";
+import { getSession, getSessionState } from "../services/api";
 
 type BoardRow = {
 	multiplier: number
@@ -18,7 +18,7 @@ const TileBoard = ()=>{
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
 
 	const [isSession, setIsSession] = useState(false);
-	// REMOVED hydrated flag
+	const skipNextStartResetRef = useRef(false);
 
     function formatMultiplier(mult: number): string {
 	   return `${mult.toFixed(2)}x`
@@ -39,13 +39,12 @@ const TileBoard = ()=>{
 		}
 		setRows(generated)
 		setClickedByRow({})
-		// removed setHydrated(false)
 	}, [])
 
 	useEffect(() => {
 		// reset progression on start: start from the top (reverse side)
 		if (!isPlaying) return;
-		// removed hydrated guard
+		if (skipNextStartResetRef.current) { skipNextStartResetRef.current = false; return; }
 		setClickedByRow({})
 		setActiveRow(Math.max(visualRows.length - 1, 0))
 	}, [isPlaying, visualRows.length]);
@@ -56,69 +55,37 @@ const TileBoard = ()=>{
 		let cancelled = false;
 		(async () => {
 			try {
-				// Query cache for each actual row index (0..rows.length-1)
-				const responses = await Promise.all(
-					Array.from({ length: rows.length }).map((_, actualIdx) =>
-						getSession({
-							isDeath: false,
-							roundEnded: false,
-							walletAddress: walletAddress || "",
-							sessionId: sessionId,
-							rowIndex: actualIdx,
-							tileIndex: 0,
-						})
-					)
-				);
-
+				const sessionState = await getSessionState(sessionId);
+				console.log("sessionState", sessionState);
 				if (cancelled) return;
 
-				let lastClickedActual: number | null = null;
-				let deathActual: number | null = null;
-				const nextClickedByRow: Record<number, boolean> = {};
+				// Restore playing flag from server first
+				if (sessionState && sessionState.isPlaying) {
+					skipNextStartResetRef.current = true;
+					rehydrate({ isPlaying: true, roundEnded: false });
+				}
 
-				responses.forEach((res, actualIdx) => {
-					const clicked = res?.clicked != null ? String(res.clicked) : null;
-					const death = res?.death != null ? String(res.death) : null;
-					if (clicked != null || death != null) {
-						const visualIdx = rows.length - 1 - actualIdx;
-						nextClickedByRow[visualIdx] = true;
-					}
-					if (clicked != null) {
-						lastClickedActual = Math.max(lastClickedActual ?? -1, actualIdx);
-					}
-					if (death != null && deathActual == null) {
-						deathActual = actualIdx;
-					}
-				});
-
-				setClickedByRow(nextClickedByRow);
-
-				if (deathActual != null) {
-					// Round ended previously
-					rehydrate({ isPlaying: false, roundEnded: true, rowIndex: deathActual });
-					endRound();
+				if (sessionState.roundEnded || !sessionState.isPlaying) {
 					return;
 				}
 
-				// No death found: continue from next row after last click
-				const nextActual = (lastClickedActual ?? -1) + 1;
-				if (nextActual >= rows.length) {
-					// Finished all rows previously
-					rehydrate({ isPlaying: false, roundEnded: true, rowIndex: rows.length - 1 });
-					endRound();
-					return;
+				const lastClickedRow = sessionState.lastClicked;
+				if (lastClickedRow !== null && lastClickedRow !== undefined) {
+					// Restore to next row after last clicked
+					const nextRow = parseInt(lastClickedRow) + 1;
+					if (nextRow < rows.length) {
+						const visualIdx = rows.length - 1 - nextRow;
+						setActiveRow(visualIdx);
+						skipNextStartResetRef.current = true;
+						rehydrate({ isPlaying: true, roundEnded: false, rowIndex: nextRow });
+					}
 				}
-
-				const nextVisual = rows.length - 1 - nextActual;
-				setActiveRow(nextVisual);
-				// Consider this an in-progress game if any click happened or we have a session
-				rehydrate({ isPlaying: true, roundEnded: false, rowIndex: nextActual });
 			} catch (e) {
 				console.error("[REHYDRATE] failed", e);
 			}
 		})();
 		return () => { cancelled = true };
-	}, [sessionId, rows.length, walletAddress, rehydrate, endRound]);
+	}, [sessionId, rows.length, rehydrate]);
 
 
 	// Maintain game state using : 

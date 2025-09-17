@@ -35,11 +35,13 @@ export async function cacheTile(p: CacheTilePayload) {
   const res = await fetch(`${base}/api/cache/cache-tiles`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
   });
+
   const data = await res.json();
   if (!res.ok) {
     console.error("[API] cache-tiles failed", res.status, data);
     throw new Error(`cacheTile failed: ${res.status}`);
   }
+  
   console.log("[API] cache-tiles ok", data);
   return data;
 }
@@ -94,6 +96,15 @@ export async function getUser(walletAddress : string){
 
 export const getSession = async (payload: SessionPayload) => {
   const res = await fetch(`${base}/api/cache/check-cache/${payload.sessionId}/${payload.rowIndex}`, {
+    method: "GET", headers: { "Content-Type": "application/json" },
+  });
+  const data = await res.json();
+  return data;
+}
+
+// get session state (simplified)
+export const getSessionState = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/cache/check-cache/${sessionId}`, {
     method: "GET", headers: { "Content-Type": "application/json" },
   });
   const data = await res.json();
