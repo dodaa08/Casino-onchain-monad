@@ -1,6 +1,6 @@
 const base = (process.env.NEXT_PUBLIC_BE_URL as string) || "http://localhost:8001";
-
 console.log("[API] base", base);
+
 
 type CacheTilePayload = {
   sessionId: string | number;
@@ -16,6 +16,20 @@ type CreateUserPayload = {
   balance: number;
 };
 
+
+type SessionPayload = {
+  isDeath: boolean;
+  roundEnded: boolean;
+  walletAddress: string;
+  sessionId: string;
+  // roundNumber: number;
+  rowIndex: number;
+  tileIndex: number;
+  // multiplier: number;
+}
+
+// Create Cache tile 
+
 export async function cacheTile(p: CacheTilePayload) {
   console.log("[API] cache-tiles ->", p);
   const res = await fetch(`${base}/api/cache/cache-tiles`, {
@@ -29,6 +43,8 @@ export async function cacheTile(p: CacheTilePayload) {
   console.log("[API] cache-tiles ok", data);
   return data;
 }
+
+
 export async function cachePayout(p: { key: string; value: number; roundEnded: boolean }) {
   const res = await fetch(`${base}/api/cache/cache-payout`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
@@ -38,7 +54,7 @@ export async function cachePayout(p: { key: string; value: number; roundEnded: b
 }
 
 
-
+// Create User
 
 export async function createUser(payload : CreateUserPayload){
      const res = await fetch(`${base}/api/users/create-user`, {
@@ -63,11 +79,22 @@ export async function createUser(payload : CreateUserPayload){
      return data;
 }
 
-
+// Get User
 
 export async function getUser(walletAddress : string){
   const res = await fetch(`${base}/api/users/get-user/${walletAddress}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
+  });
+  const data = await res.json();
+  return data;
+}
+
+
+// get session 
+
+export const getSession = async (payload: SessionPayload) => {
+  const res = await fetch(`${base}/api/cache/check-cache/${payload.sessionId}/${payload.rowIndex}`, {
+    method: "GET", headers: { "Content-Type": "application/json" },
   });
   const data = await res.json();
   return data;

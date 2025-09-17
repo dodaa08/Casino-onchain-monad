@@ -14,6 +14,7 @@ type GameState = {
   start: () => void;
   endRound: () => void;
   selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean) => Promise<void>;
+  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex">>) => void;
 };
 
 export const useGame = create<GameState>((set, get) => ({
@@ -47,5 +48,15 @@ export const useGame = create<GameState>((set, get) => ({
       console.error(e);
       console.error("[CACHE] tile cache failed", e);
     }
+  },
+
+  rehydrate: (p) => {
+    set((prev) => ({
+      isPlaying: p.isPlaying ?? prev.isPlaying,
+      roundEnded: p.roundEnded ?? prev.roundEnded,
+      sessionId: p.sessionId ?? prev.sessionId,
+      rowIndex: p.rowIndex ?? prev.rowIndex,
+      tileIndex: p.tileIndex ?? prev.tileIndex,
+    }));
   },
 }));

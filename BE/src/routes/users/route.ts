@@ -3,7 +3,6 @@ import { User } from "../../Db/schema.js";
 const UserRouter = Router();
 
 
-
 const createUser = async (req: any, res: any) => {
     const { walletAddress, balance } = req.body;
     try {
