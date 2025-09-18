@@ -5,6 +5,7 @@ dotenv.config();
 import cors from "cors";
 
 
+
 const PORT = process.env.PORT;
 const MONGO_URL = process.env.MONGO_DB_URL || "";
 
@@ -18,12 +19,18 @@ import WithdrawFundsRouter from "./routes/withdrawFunds/route.js";
 const app = express();
 app.use(express.json());
 
-app.use(cors({  
+// app.use(cors({  
+//     origin: "http://localhost:3000",
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     credentials: true,
+// }));
+
+app.use(cors({
     origin: "http://localhost:3000",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-}));
+    methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+    allowedHeaders: ["Content-Type","Authorization"],
+  }));
 
 app.use("/api/cache", CacheRouter);
 app.use("/api/payouts", PayoutsRouter);

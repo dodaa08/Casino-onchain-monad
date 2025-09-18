@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
-import { getSession, getSessionState } from "../services/api";
+import { getSessionState } from "@/app/services/api";
 
 type BoardRow = {
 	multiplier: number
@@ -12,11 +12,10 @@ type BoardRow = {
 
 const TileBoard = ()=>{
 	const [rows, setRows] = useState<BoardRow[]>([]);
-	const { isPlaying, selectTile, endRound, sessionId, rehydrate } = useGame();
+	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId } = useGame();
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
-
 	const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
 
@@ -39,7 +38,7 @@ const TileBoard = ()=>{
 		}
 		setRows(generated)
 		setClickedByRow({})
-	}, [])
+	}, []);
 
 	useEffect(() => {
 		// reset progression on start: start from the top (reverse side)
@@ -51,12 +50,15 @@ const TileBoard = ()=>{
 
 	// Rehydrate from backend cache on mount/when session and rows are ready (no localStorage)
 	useEffect(() => {
+		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
 		if (!sessionId || rows.length === 0) return;
 		let cancelled = false;
 		(async () => {
 			try {
+				const ts = Date.now();
+				console.log("[rehydrate] GET", `${process.env.NEXT_PUBLIC_BE_URL || "http://localhost:8001"}/api/cache/check-cache/${sessionId}?t=${ts}`);
 				const sessionState = await getSessionState(sessionId);
-				console.log("sessionState", sessionState);
+				console.log("[rehydrate] res", sessionState);
 				if (cancelled) return;
 
 				// Restore playing flag from server first
@@ -105,8 +107,16 @@ const TileBoard = ()=>{
 	}
 
 	const handleTileClick = async (visualIdx: number, clickedTileIdx: number)=>{
+		console.log("[SESSION] click ->", { sessionId, visualIdx, activeRow });
 		if(!walletAddress || !isPlaying) return;
 		if (visualIdx !== activeRow || clickedByRow[visualIdx]) return; // only current row once
+
+		// Ensure session exists if user somehow skipped Play
+		if (!sessionId) {
+			const id = crypto.randomUUID();
+			console.log("[SESSION] fallback create on click ->", id);
+			setSessionId(id);
+		}
 
 		// Map visual index back to actual index in original rows array
 		const actualIdx = rows.length - 1 - visualIdx;
@@ -131,11 +141,7 @@ const TileBoard = ()=>{
 			setActiveRow(prev => prev - 1)
 		}
 	}
-
-
-
-
-
+	
 
 	return(
 		<>

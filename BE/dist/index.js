@@ -13,11 +13,16 @@ import UserRouter from "./routes/users/route.js";
 import WithdrawFundsRouter from "./routes/withdrawFunds/route.js";
 const app = express();
 app.use(express.json());
+// app.use(cors({  
+//     origin: "http://localhost:3000",
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     credentials: true,
+// }));
 app.use(cors({
     origin: "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
 }));
 app.use("/api/cache", CacheRouter);
 app.use("/api/payouts", PayoutsRouter);

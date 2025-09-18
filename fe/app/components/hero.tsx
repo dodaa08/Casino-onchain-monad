@@ -8,14 +8,12 @@ import { useEffect } from "react";
 import { useAccount } from "wagmi";
 
 const Hero = ()=>{
-    const { start, setSessionId } = useGame();
+    const { start } = useGame();
     const { address: walletAddress } = useAccount();
 
 
     useEffect(() => {
-        if(walletAddress){
-            setSessionId(crypto.randomUUID());
-        }
+        // Removed auto setSessionId on wallet connect to preserve session across reloads
     }, [walletAddress]);
     
     return(

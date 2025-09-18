@@ -1,3 +1,15 @@
-1. Intefrating the real caching of game state on Reload
-2. Understand the tileBoard and all the integrations
-3. Work on deposit funds, demos etc..
+// To be completed : 
+
+1. Game state persistence with caching logic on frontend 
+2. Score/earnings whichs is cached to and mainted on teh frontend
+3. Final payouts to the wallet address after the round ends 
+4. Deposit funds
+5. Withdraw payouts in between the rounds 
+5. Leader board with wallet address and associated : Earned from payouts
+
+
+// Maybe some good frontend Annimation and styling like game 
+
+
+// Deploymenst : BE, Redis maybe on render/ railway 
+// frontend on vercel 
