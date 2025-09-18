@@ -80,7 +80,6 @@ export async function createUser(payload: CreateUserPayload) {
 }
 
 // Get User
-
 export async function getUser(walletAddress : string){
   const res = await fetch(`${base}/api/users/get-user/${walletAddress}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -90,15 +89,17 @@ export async function getUser(walletAddress : string){
 }
 
 
-// get session 
+// get last session id
+export async function getLastSessionId(walletAddress : string){
+  const res = await fetch(`${base}/api/cache/get-last-sessionId/${walletAddress}`, {
+    method: "GET", headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error(`getLastSessionId failed: ${res.status}`);
+  console.log("[API] getLastSessionId ok", res.status);
+  const data = await res.json();
+  return data;
+}
 
-// export const getSession = async (payload: SessionPayload) => {
-//   const res = await fetch(`${base}/api/cache/check-cache/${payload.sessionId}/${payload.rowIndex}`, {
-//     method: "GET", headers: { "Content-Type": "application/json" },
-//   });
-//   const data = await res.json();
-//   return data;
-// }
 
 // get session state (simplified)
 export const getSessionState = async (sessionId: string) => {

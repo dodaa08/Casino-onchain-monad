@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
-import { getSessionState } from "@/app/services/api";
+import { getSessionState, getLastSessionId } from "@/app/services/api";
+
 
 type BoardRow = {
 	multiplier: number
@@ -18,6 +19,7 @@ const TileBoard = ()=>{
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
 	const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
+	const fetchedLastSessionRef = useRef(false);
 
     function formatMultiplier(mult: number): string {
 	   return `${mult.toFixed(2)}x`
@@ -48,6 +50,28 @@ const TileBoard = ()=>{
 		setActiveRow(Math.max(visualRows.length - 1, 0))
 	}, [isPlaying, visualRows.length]);
 
+	// If sessionId is empty on reload, fetch the last session for this wallet and set it
+	useEffect(() => {
+		if (sessionId || !walletAddress || fetchedLastSessionRef.current) return;
+		let cancelled = false;
+		(async () => {
+			try {
+				console.log("[SESSION] fetch last ->", walletAddress);
+				const res = await getLastSessionId(walletAddress);
+				if (cancelled) return;
+				const last = res?.sessionId ?? res?.lastSessionId ?? null;
+				if (last) {
+					console.log("[SESSION] apply last ->", last);
+					setSessionId(last);
+					fetchedLastSessionRef.current = true;
+				}
+			} catch (e) {
+				console.error("[SESSION] getLastSessionId failed", e);
+			}
+		})();
+		return () => { cancelled = true };
+	}, [sessionId, walletAddress, setSessionId]);
+
 	// Rehydrate from backend cache on mount/when session and rows are ready (no localStorage)
 	useEffect(() => {
 		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
@@ -71,7 +95,7 @@ const TileBoard = ()=>{
 					return;
 				}
 
-				const lastClickedRow = sessionState.lastClicked;
+				const lastClickedRow = sessionState.lastClicked ?? sessionState.lastClickedRow;
 				if (lastClickedRow !== null && lastClickedRow !== undefined) {
 					// Restore to next row after last clicked
 					const nextRow = parseInt(lastClickedRow) + 1;
@@ -141,7 +165,11 @@ const TileBoard = ()=>{
 			setActiveRow(prev => prev - 1)
 		}
 	}
-	
+
+
+
+
+
 
 	return(
 		<>
