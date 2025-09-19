@@ -2,53 +2,101 @@
 
 import { useAccount } from "wagmi";
 import { useGame } from "../store/useGame";
-
+import { useState, useEffect } from "react";
+import { cachePayouts, getCachedPayouts } from "../services/api";
+import { useQuery } from "@tanstack/react-query";
 
 const BottomBar = ()=>{
+	const { address: walletAddress } = useAccount();
+	const { isPlaying, roundEnded, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount } = useGame();
+	const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
+	const [mounted, setMounted] = useState(false);
 
-	const {address: walletAddress} = useAccount();
-	const {isPlaying, roundEnded, start} = useGame();
+	useEffect(() => {
+		setMounted(true);
+	}, []);
 	
+
+// live cache while playing
+useEffect(() => {
+	if (isPlaying && !roundEnded && walletAddress) {
+	  cachePayouts({ key: walletAddress, value: cumulativePayoutAmount, roundEnded: false, walletAddress });
+	}
+  }, [isPlaying, roundEnded, cumulativePayoutAmount, walletAddress]);
+  
+  // lock final on end and commit
+  useEffect(() => {
+	if (roundEnded) setFinalPayoutAmount(cumulativePayoutAmount);
+  }, [roundEnded, cumulativePayoutAmount]);
+  
+  // cache final payout while playing
+  useEffect(() => {
+	if (roundEnded && walletAddress) {
+	  cachePayouts({ key: walletAddress, value: finalPayoutAmount, roundEnded: true, walletAddress });
+	}
+  }, [roundEnded, finalPayoutAmount, walletAddress]);
+  
+  // read cached payout on mount/reload (enabled when wallet exists, regardless of playing state)
+  const { data: cachedData, isLoading: isCachedLoading } = useQuery({
+	queryKey: ["cachedPayouts", walletAddress, roundEnded ? "final" : "live"],
+	queryFn: () => getCachedPayouts(walletAddress as string),
+	enabled: mounted && !!walletAddress,
+  });
+  
+  const cachedRaw = cachedData?.payout as unknown;
+  const cachedNum = cachedRaw != null ? Number(cachedRaw) : null;
+  
+  // Rehydrate earnings from cache when mounted and playing
+  useEffect(() => {
+    if (mounted && isPlaying && !roundEnded && cachedNum != null && Number.isFinite(cachedNum) && cumulativePayoutAmount === 0) {
+      console.log("[BottomBar] rehydrating earnings from cache:", cachedNum);
+      setCumulativePayoutAmount(cachedNum);
+    }
+  }, [mounted, isPlaying, roundEnded, cachedNum, cumulativePayoutAmount, setCumulativePayoutAmount]);
+
+  // Debug logging
+  console.log("[BottomBar] state:", { 
+    isPlaying, 
+    roundEnded, 
+    cumulativePayoutAmount, 
+    finalPayoutAmount, 
+    cachedRaw, 
+    cachedNum,
+    isCachedLoading,
+    walletAddress
+  });
+
 	return (
 		<div className="fixed inset-x-0 bottom-6 flex justify-center px-4">
-			<div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 py-8  shadow-gray-900 shadow-inner">
-				<div className="flex items-center justify-center gap-6">
+			<div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 py-5  shadow-gray-900 shadow-inner">
+				 
+			<div className="flex flex-col justify-between items-center gap-4">
+  {/* Left */}
+  <div>
+    {!mounted ? (
+      <span>...</span>
+    ) : !isPlaying && walletAddress ? (
+      <button onClick={start} className="min-w-[180px] mt-2 h-10 rounded-md bg-lime-400 text-black font-semibold tracking-wide hover:bg-lime-300 transition-colors">Play</button>
+    ) : !isPlaying && !walletAddress ? (
+      <span>Connect Wallet To Play</span>
+    ) : isPlaying ? (
+      <span>Playing</span>
+    ) : (
+      <span>Round Ended</span>
+    )}
+  </div>
 
-										{
-						!isPlaying && walletAddress ? (
-							<button onClick={start} className="min-w-[180px] h-10 rounded-md bg-lime-400 text-black font-semibold tracking-wide hover:bg-lime-300 transition-colors">Play</button>
-						) 
-						:
-						!isPlaying && !walletAddress ? (
-							<>
-								<span>Connect Wallet To Play</span>
-							</>
-						)
-						:
-						   isPlaying ? (
-							<>
-								{/* <button onClick={start} className="min-w-[180px] h-10 rounded-md bg-lime-400 text-black font-semibold tracking-wide hover:bg-lime-300 transition-colors">Playing</button> */}
-								<span>Playing</span>
-							</>
-						) : (
-							<>
-								<span>Round Ended</span>
-							</>
-						)
-					}
-{/* 					
-					<button  className="min-w-[180px] h-10 rounded-md bg-white text-black font-semibold tracking-wide hover:bg-gray-100 transition-colors">Deposit</button> */}
-				</div>
-				{/* <div className="mt-4 flex items-center justify-center gap-6 text-sm">
-					<div className="flex items-center gap-2">
-						<span className="text-gray-400">Deposited</span>
-						
-					</div>
-					<div className="flex items-center gap-2">
-						<span className="text-gray-400">Earned</span>
-						
-					</div> */}
-				{/* </div> */}
+  {/* Right */}
+  <div className="w-full flex justify-center">
+  {!mounted ? (
+    <span className="text-lime-400 text-sm">Earnings: ...</span>
+  ) : isPlaying ? (
+    <span className="text-lime-400 text-sm">Earnings: {cumulativePayoutAmount.toFixed(2)}</span>
+  ) : roundEnded ? (
+    <span className="text-lime-400 text-sm">Final Earnings: {cachedNum != null && Number.isFinite(cachedNum) ? cachedNum.toFixed(2) : finalPayoutAmount.toFixed(2)}</span>
+  ) : null}
+</div>
+</div>
 			</div>
 		</div>
 	)

@@ -110,3 +110,28 @@ export const getSessionState = async (sessionId: string) => {
   console.log("[rehydrate] res", res);
   return res.json();
 };
+
+
+// cache the incresing payouts 
+export const cachePayouts = async (p: { key: string; value: number; roundEnded: boolean, walletAddress: string })=>{
+  console.log("[API] cachePayouts ->", p);
+  if(!p.walletAddress) throw new Error(`walletAddress is required`);
+  const res = await fetch(`${base}/api/cache/cache-payout`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
+  });
+  if (!res.ok) throw new Error(`cachePayouts failed: ${res.status}`); 
+  const data = await res.json();
+  console.log("[API] cachePayouts ok", res.status);
+  return data;
+}
+
+
+// get cached payouts
+export const getCachedPayouts = async (walletAddress: string)=>{
+  const res = await fetch(`${base}/api/cache/check-payout/${walletAddress}`, {
+    method: "GET", headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error(`getCachedPayouts failed: ${res.status}`);
+  console.log("[API] getCachedPayouts ok", res.status);
+  return res.json();
+}

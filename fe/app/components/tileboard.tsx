@@ -148,7 +148,10 @@ const TileBoard = ()=>{
 		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
 		const isDeath = clickedTileIdx === deathIdx
 		setIsSession(true);
-		await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
+
+		const rowMult = rows[actualIdx]?.multiplier ?? 1;
+        await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
+		// await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
 		setClickedByRow(prev => ({ ...prev, [visualIdx]: true }))
 		if(isDeath){
 			console.log(`[DEATH] row=${actualIdx} deathIdx=${deathIdx} clicked=${clickedTileIdx}`)

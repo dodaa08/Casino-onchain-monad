@@ -2,8 +2,6 @@ import { create } from "zustand";
 import { cacheTile } from "@/app/services/api";
 // import cacheTile from "@/app/services/api";
 
-
-
 type GameState = {
   isPlaying: boolean;
   roundEnded: boolean;
@@ -13,8 +11,15 @@ type GameState = {
   setSessionId: (id: string) => void;
   start: () => void;
   endRound: () => void;
-  selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean) => Promise<void>;
-  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex">>) => void;
+  // rowMultiplier is optional for backward compatibility; stakeOverride optional if you want to pass stake per click
+  selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean, rowMultiplier?: number, stakeOverride?: number) => Promise<void>;
+  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount">>) => void;
+  setCumulativePayoutAmount: (amount: number) => void;
+  payoutAmount : number; // ETH you would cash out now
+  cumulativePayoutAmount: number; // Death Points (risked ETH * 150)
+  stake: number;
+  cumulativeMultiplier: number;
+  setStake: (s: number)=> void;
 };
 
 export const useGame = create<GameState>((set, get) => ({
@@ -23,14 +28,20 @@ export const useGame = create<GameState>((set, get) => ({
   sessionId: "",
   rowIndex: 0,
   tileIndex: 0,
+  payoutAmount: 0,
+  cumulativePayoutAmount: 0,
+  stake: 1,
+  cumulativeMultiplier: 1,
 
+  setStake: (s) => set({ stake: s }),
   setSessionId: (id) => set({ sessionId: id }),
-  start: () => set({ isPlaying: true, roundEnded: false }),
+  setCumulativePayoutAmount: (amount) => set({ cumulativePayoutAmount: amount }),
+  start: () => set({ isPlaying: true, roundEnded: false, payoutAmount: 0, cumulativePayoutAmount: 0, cumulativeMultiplier: 1 }),
   endRound: () => set({ isPlaying: false, roundEnded: true }),
 
-  selectTile: async (rowIndex, tileIndex, walletAddress, isDeath) => {
+  selectTile: async (rowIndex, tileIndex, walletAddress, isDeath, rowMultiplier, stakeOverride) => {
     set({ rowIndex, tileIndex });
-    const { sessionId } = get();
+    const { sessionId, stake } = get();
     // fire-and-forget; handle errors as you like
     try {
       await cacheTile({
@@ -42,7 +53,26 @@ export const useGame = create<GameState>((set, get) => ({
         walletAddress,
       });
       console.log("cacheTile", { sessionId, rowIndex, tileIndex, isDeath, roundEnded: isDeath, walletAddress });
-      if (isDeath) set({ isPlaying: false, roundEnded: true });
+
+      if (isDeath) {
+        // On death, end round; keep last computed points, zero ETH payout
+        set({ isPlaying: false, roundEnded: true, payoutAmount: 0 });
+        return;
+      }
+
+      // Safe click: update ETH payout and Death Points
+      if (typeof rowMultiplier === "number") {
+        const effectiveStake = typeof stakeOverride === "number" ? stakeOverride : stake;
+        const newCumulativeMultiplier = rowMultiplier; // rows[] multiplier is cumulative per row
+        const ethNow = Number((effectiveStake * newCumulativeMultiplier).toFixed(4));
+        const deathPoints = Number((ethNow * 150).toFixed(2));
+        console.log("[PAYOUT] riskedETH", ethNow, "deathPoints", deathPoints, "mult", newCumulativeMultiplier);
+        set({
+          cumulativeMultiplier: newCumulativeMultiplier,
+          payoutAmount: ethNow,
+          cumulativePayoutAmount: deathPoints,
+        });
+      }
     } catch (e) {
       // optional: toast/log
       console.error(e);
@@ -57,6 +87,7 @@ export const useGame = create<GameState>((set, get) => ({
       sessionId: p.sessionId ?? prev.sessionId,
       rowIndex: p.rowIndex ?? prev.rowIndex,
       tileIndex: p.tileIndex ?? prev.tileIndex,
+      cumulativePayoutAmount: p.cumulativePayoutAmount ?? prev.cumulativePayoutAmount,
     }));
   },
 }));
