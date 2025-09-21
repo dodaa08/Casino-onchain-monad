@@ -20,6 +20,7 @@ const TileBoard = ()=>{
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
+	const [clickedTileIndex, setClickedTileIndex] = useState<Record<number, number>>({}); // row -> clicked tile index
 	const [deathTiles, setDeathTiles] = useState<Record<number, number>>({}); // row -> death tile index
 	const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
@@ -64,6 +65,7 @@ const TileBoard = ()=>{
 		}
 		setRows(generated)
 		setClickedByRow({})
+		setClickedTileIndex({})
 		setDeathTiles({})
 	}, []);
 
@@ -72,6 +74,7 @@ const TileBoard = ()=>{
 		if (!isPlaying) return;
 		if (skipNextStartResetRef.current) { skipNextStartResetRef.current = false; return; }
 		setClickedByRow({})
+		setClickedTileIndex({})
 		setDeathTiles({})
 		setActiveRow(Math.max(visualRows.length - 1, 0))
 	}, [isPlaying, visualRows.length]);
@@ -133,8 +136,9 @@ const TileBoard = ()=>{
 						setActiveRow(visualIdx);
 						skipNextStartResetRef.current = true;
 						rehydrate({ isPlaying: true, roundEnded: false, rowIndex: nextRow });
-					}
+					}	
 				}
+				setSpinner(false); // Hide spinner on successful rehydration
 			} catch (e) {
 				console.error("[REHYDRATE] failed", e);
 				setSpinner(false);
@@ -185,6 +189,7 @@ const TileBoard = ()=>{
         await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
 		// await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
 		setClickedByRow(prev => ({ ...prev, [visualIdx]: true }))
+		setClickedTileIndex(prev => ({ ...prev, [visualIdx]: clickedTileIdx }))
 		
 		// Store the death tile index for this row
 		setDeathTiles(prev => ({ ...prev, [visualIdx]: deathIdx }))
@@ -230,6 +235,7 @@ const TileBoard = ()=>{
 			
 			setRows(generated);
 			setClickedByRow({});
+			setClickedTileIndex({});
 			setDeathTiles({});
 			setActiveRow(Math.max(generated.length - 1, 0));
 			setSpinner(false);
@@ -274,13 +280,25 @@ const TileBoard = ()=>{
 						{Array.from({ length: row.tiles }).map((_, idx) => {
 							const isDeathTile = deathTiles[vIdx] === idx;
 							const isClicked = clickedByRow[vIdx];
+							const clickedTileIdx = clickedTileIndex[vIdx];
+							
+							// Determine tile color based on state
+							let tileColor = "bg-[#121a29] border-gray-700/60";
+							if (isClicked && clickedTileIdx === idx) {
+								if (isDeathTile) {
+									tileColor = "bg-red-600 border-red-500"; // Red for death tile
+								} else {
+									tileColor = "bg-green-500 border-green-500"; // Green for clicked safe tile
+								}
+							}
+							
 							return (
 								<div key={idx} className="relative">
 									<button
 										type="button"
 										disabled={!isPlaying || vIdx !== activeRow || !!clickedByRow[vIdx]}
 										onClick={() => handleTileClick(vIdx, idx)}
-										className={`h-20 w-20 rounded-md transition-colors border bg-[#121a29] hover:bg-gray-700 border-gray-700/60 ${(!isPlaying || vIdx !== activeRow || clickedByRow[vIdx]) ? 'opacity-60 cursor-not-allowed hover:bg-[#121a29]' : ''}`}
+										className={`h-20 w-20 rounded-md transition-colors border ${tileColor} ${(!isPlaying || vIdx !== activeRow || clickedByRow[vIdx]) ? 'opacity-60 cursor-not-allowed hover:bg-[#121a29]' : 'hover:bg-gray-700'}`}
 									/>
 									{/* Show death tile image on top of the death tile */}
 									{isDeathTile && isClicked && (
