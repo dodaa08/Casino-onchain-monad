@@ -16,7 +16,7 @@ type GameState = {
   setReplay: (replay: boolean) => void;
   // rowMultiplier is optional for backward compatibility; stakeOverride optional if you want to pass stake per click
   selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean, rowMultiplier?: number, stakeOverride?: number) => Promise<void>;
-  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount">>) => void;
+  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount" | "diedOnDeathTile">>) => void;
   setCumulativePayoutAmount: (amount: number) => void;
   payoutAmount : number; // ETH you would cash out now
   cumulativePayoutAmount: number; // Death Points (risked ETH * 150)
@@ -94,6 +94,7 @@ export const useGame = create<GameState>((set, get) => ({
       rowIndex: p.rowIndex ?? prev.rowIndex,
       tileIndex: p.tileIndex ?? prev.tileIndex,
       cumulativePayoutAmount: p.cumulativePayoutAmount ?? prev.cumulativePayoutAmount,
+      diedOnDeathTile: p.diedOnDeathTile ?? prev.diedOnDeathTile,
     }));
   },
 }));

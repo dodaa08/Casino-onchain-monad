@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
 import { getSessionState, getLastSessionId } from "@/app/services/api";
-import deathtile from "../../public/death.webp";
+import deathtile from "../../public/death-skull.svg";
 import { toast } from "react-toastify";
 
 
