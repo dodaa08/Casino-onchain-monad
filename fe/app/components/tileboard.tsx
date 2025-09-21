@@ -5,6 +5,9 @@ import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
 import { getSessionState, getLastSessionId } from "@/app/services/api";
 import deathtile from "../../public/death.webp";
+import { toast } from "react-toastify";
+
+
 
 type BoardRow = {
 	multiplier: number
@@ -13,7 +16,7 @@ type BoardRow = {
 
 const TileBoard = ()=>{
 	const [rows, setRows] = useState<BoardRow[]>([]);
-	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId } = useGame();
+	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay } = useGame();
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
@@ -21,6 +24,26 @@ const TileBoard = ()=>{
 	const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
 	const fetchedLastSessionRef = useRef(false);
+	const [spinner, setSpinner] = useState(false);
+	
+
+
+
+	// const shuffleDeathTile = ()=>{
+		
+	// }
+
+	const LoadingSpinner = ({ message = "Loading..." }) => (
+		<div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+		  <div className="flex flex-col items-center gap-4">
+			<div className="w-16 h-16 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
+			<p className="text-emerald-400 text-lg font-semibold">{message}</p>
+		  </div>
+		</div>
+	  );
+
+
+	
 
     function formatMultiplier(mult: number): string {
 	   return `${mult.toFixed(2)}x`
@@ -79,6 +102,8 @@ const TileBoard = ()=>{
 	useEffect(() => {
 		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
 		if (!sessionId || rows.length === 0) return;
+
+		setSpinner(true);
 		let cancelled = false;
 		(async () => {
 			try {
@@ -95,6 +120,7 @@ const TileBoard = ()=>{
 				}
 
 				if (sessionState.roundEnded || !sessionState.isPlaying) {
+					setSpinner(false);
 					return;
 				}
 
@@ -111,6 +137,7 @@ const TileBoard = ()=>{
 				}
 			} catch (e) {
 				console.error("[REHYDRATE] failed", e);
+				setSpinner(false);
 			}
 		})();
 		return () => { cancelled = true };
@@ -144,6 +171,7 @@ const TileBoard = ()=>{
 			console.log("[SESSION] fallback create on click ->", id);
 			setSessionId(id);
 		}
+		
 
 		// Map visual index back to actual index in original rows array
 		const actualIdx = rows.length - 1 - visualIdx;
@@ -151,6 +179,7 @@ const TileBoard = ()=>{
 		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
 		const isDeath = clickedTileIdx === deathIdx
 		setIsSession(true);
+		
 
 		const rowMult = rows[actualIdx]?.multiplier ?? 1;
         await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
@@ -162,7 +191,9 @@ const TileBoard = ()=>{
 		
 		if(isDeath){
 			console.log(`[DEATH] row=${actualIdx} deathIdx=${deathIdx} clicked=${clickedTileIdx}`)
-			alert("Death tile hit. Round ended.");
+			// setReplay(true);
+			
+			// toast.error("Death tile hit. Round ended.");
 			endRound();
 			setIsSession(false);
 			return;
@@ -171,14 +202,66 @@ const TileBoard = ()=>{
 		if (activeRow <= 0) {
 			endRound();
 			setIsSession(false);
+			// setReplay(true);
+			
 		} else {
 			setActiveRow(prev => prev - 1)
+		
 		}
 	}
 
+
+
+	const regenerateBoard = () => {
+		setSpinner(true);
+		
+		setTimeout(() => {
+			// Generate new board
+			const numRows = 12 + Math.floor(Math.random() * 4);
+			const startMultiplier = 1.10;
+			const growthPerRow = 1.18;
+			const generated: BoardRow[] = [];
+			
+			for (let i = 0; i < numRows; i++) {
+				const tiles = 2 + Math.floor(Math.random() * 6); // 2..7 visible tiles
+				const multiplier = startMultiplier * Math.pow(growthPerRow, i);
+				generated.push({ multiplier, tiles });
+			}
+			
+			setRows(generated);
+			setClickedByRow({});
+			setDeathTiles({});
+			setActiveRow(Math.max(generated.length - 1, 0));
+			setSpinner(false);
+		}, 100); // Simulate loading time
+	};
+
+
+// Shuffle on Replay
+	useEffect(()=>{
+		if(Replay){
+			// Generate new sessionId for fresh death tiles
+			const newSessionId = crypto.randomUUID();
+			setSessionId(newSessionId);
+			
+			// Regenerate board with new layout
+			regenerateBoard();
+			
+			// Reset replay flag
+			setReplay(false);
+		}
+	}, [Replay, setSessionId, setReplay])
+
+
 	return(
+		
 		<>
-		<div className="px-4 py-10 mb-40">
+
+{
+		spinner ? (
+			<LoadingSpinner message="Loading Game State..." />
+		) : (
+<div className="px-4 py-10 mb-40">
 	      <div className="flex flex-col gap-4">
 		{visualRows.map((row, vIdx) => (
 			<div key={vIdx} className="flex items-center gap-4 justify-center">
@@ -218,6 +301,10 @@ const TileBoard = ()=>{
 		))}
 	</div>
 </div>
+		)
+	}
+		
+		
 		</>
 	)
 }

@@ -5,12 +5,15 @@ import { cacheTile } from "@/app/services/api";
 type GameState = {
   isPlaying: boolean;
   roundEnded: boolean;
+  diedOnDeathTile: boolean; // Track if round ended due to death tile
   sessionId: string;
   rowIndex: number;
   tileIndex: number;
   setSessionId: (id: string) => void;
+  Replay: boolean;
   start: () => void;
   endRound: () => void;
+  setReplay: (replay: boolean) => void;
   // rowMultiplier is optional for backward compatibility; stakeOverride optional if you want to pass stake per click
   selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean, rowMultiplier?: number, stakeOverride?: number) => Promise<void>;
   rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount">>) => void;
@@ -25,6 +28,7 @@ type GameState = {
 export const useGame = create<GameState>((set, get) => ({
   isPlaying: false,
   roundEnded: false,
+  diedOnDeathTile: false,
   sessionId: "",
   rowIndex: 0,
   tileIndex: 0,
@@ -32,11 +36,13 @@ export const useGame = create<GameState>((set, get) => ({
   cumulativePayoutAmount: 0,
   stake: 1,
   cumulativeMultiplier: 1,
+  Replay: false,
+  setReplay: (replay) => set({ Replay: replay }),
 
   setStake: (s) => set({ stake: s }),
   setSessionId: (id) => set({ sessionId: id }),
   setCumulativePayoutAmount: (amount) => set({ cumulativePayoutAmount: amount }),
-  start: () => set({ isPlaying: true, roundEnded: false, payoutAmount: 0, cumulativePayoutAmount: 0, cumulativeMultiplier: 1 }),
+  start: () => set({ isPlaying: true, roundEnded: false, diedOnDeathTile: false, payoutAmount: 0, cumulativePayoutAmount: 0, cumulativeMultiplier: 1 }),
   endRound: () => set({ isPlaying: false, roundEnded: true }),
 
   selectTile: async (rowIndex, tileIndex, walletAddress, isDeath, rowMultiplier, stakeOverride) => {
@@ -56,7 +62,7 @@ export const useGame = create<GameState>((set, get) => ({
 
       if (isDeath) {
         // On death, end round; keep last computed points, zero ETH payout
-        set({ isPlaying: false, roundEnded: true, payoutAmount: 0 });
+        set({ isPlaying: false, roundEnded: true, diedOnDeathTile: true, payoutAmount: 0 });
         return;
       }
 
