@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
 import { getSessionState, getLastSessionId } from "@/app/services/api";
-
+import deathtile from "../../public/death.webp";
 
 type BoardRow = {
 	multiplier: number
@@ -17,6 +17,7 @@ const TileBoard = ()=>{
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
+	const [deathTiles, setDeathTiles] = useState<Record<number, number>>({}); // row -> death tile index
 	const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
 	const fetchedLastSessionRef = useRef(false);
@@ -40,6 +41,7 @@ const TileBoard = ()=>{
 		}
 		setRows(generated)
 		setClickedByRow({})
+		setDeathTiles({})
 	}, []);
 
 	useEffect(() => {
@@ -47,6 +49,7 @@ const TileBoard = ()=>{
 		if (!isPlaying) return;
 		if (skipNextStartResetRef.current) { skipNextStartResetRef.current = false; return; }
 		setClickedByRow({})
+		setDeathTiles({})
 		setActiveRow(Math.max(visualRows.length - 1, 0))
 	}, [isPlaying, visualRows.length]);
 
@@ -153,6 +156,10 @@ const TileBoard = ()=>{
         await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
 		// await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
 		setClickedByRow(prev => ({ ...prev, [visualIdx]: true }))
+		
+		// Store the death tile index for this row
+		setDeathTiles(prev => ({ ...prev, [visualIdx]: deathIdx }))
+		
 		if(isDeath){
 			console.log(`[DEATH] row=${actualIdx} deathIdx=${deathIdx} clicked=${clickedTileIdx}`)
 			alert("Death tile hit. Round ended.");
@@ -169,11 +176,6 @@ const TileBoard = ()=>{
 		}
 	}
 
-
-
-
-
-
 	return(
 		<>
 		<div className="px-4 py-10 mb-40">
@@ -186,15 +188,30 @@ const TileBoard = ()=>{
 
 				<div className={`flex items-center gap-4 rounded-2xl px-8 md:px-10 py-8 bg-[#0f172a]/90 border ${isPlaying && vIdx === activeRow ? 'border-emerald-500' : 'border-gray-800/60'}`}>
 					<div className="flex flex-row-reverse items-center gap-4 justify-end">
-						{Array.from({ length: row.tiles }).map((_, idx) => (
-							<button
-								key={idx}
-								type="button"
-								disabled={!isPlaying || vIdx !== activeRow || !!clickedByRow[vIdx]}
-								onClick={() => handleTileClick(vIdx, idx)}
-								className={`h-20 w-20 rounded-md transition-colors border bg-[#121a29] hover:bg-gray-700 border-gray-700/60 ${(!isPlaying || vIdx !== activeRow || clickedByRow[vIdx]) ? 'opacity-60 cursor-not-allowed hover:bg-[#121a29]' : ''}`}
-							/>
-						))}
+						{Array.from({ length: row.tiles }).map((_, idx) => {
+							const isDeathTile = deathTiles[vIdx] === idx;
+							const isClicked = clickedByRow[vIdx];
+							return (
+								<div key={idx} className="relative">
+									<button
+										type="button"
+										disabled={!isPlaying || vIdx !== activeRow || !!clickedByRow[vIdx]}
+										onClick={() => handleTileClick(vIdx, idx)}
+										className={`h-20 w-20 rounded-md transition-colors border bg-[#121a29] hover:bg-gray-700 border-gray-700/60 ${(!isPlaying || vIdx !== activeRow || clickedByRow[vIdx]) ? 'opacity-60 cursor-not-allowed hover:bg-[#121a29]' : ''}`}
+									/>
+									{/* Show death tile image on top of the death tile */}
+									{isDeathTile && isClicked && (
+										<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+											<img 
+												src={deathtile.src} 
+												alt="Death tile" 
+												className="w-16 h-16 rounded-full object-contain"
+											/>
+										</div>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				</div>
 			</div>
