@@ -16,13 +16,15 @@ type GameState = {
   setReplay: (replay: boolean) => void;
   // rowMultiplier is optional for backward compatibility; stakeOverride optional if you want to pass stake per click
   selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean, rowMultiplier?: number, stakeOverride?: number) => Promise<void>;
-  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount" | "diedOnDeathTile">>) => void;
+  rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount" | "diedOnDeathTile" | "initialStake" | "totalLoss">>) => void;
   setCumulativePayoutAmount: (amount: number) => void;
   payoutAmount : number; // ETH you would cash out now
   cumulativePayoutAmount: number; // Death Points (risked ETH * 150)
   stake: number;
   cumulativeMultiplier: number;
   setStake: (s: number)=> void;
+  initialStake: number; // Track the original stake amount
+  totalLoss: number; // Total amount lost on death (stake + earnings)
 };
 
 export const useGame = create<GameState>((set, get) => ({
@@ -36,13 +38,24 @@ export const useGame = create<GameState>((set, get) => ({
   cumulativePayoutAmount: 0,
   stake: 1,
   cumulativeMultiplier: 1,
+  initialStake: 0,
+  totalLoss: 0,
   Replay: false,
   setReplay: (replay) => set({ Replay: replay }),
 
   setStake: (s) => set({ stake: s }),
   setSessionId: (id) => set({ sessionId: id }),
   setCumulativePayoutAmount: (amount) => set({ cumulativePayoutAmount: amount }),
-  start: () => set({ isPlaying: true, roundEnded: false, diedOnDeathTile: false, payoutAmount: 0, cumulativePayoutAmount: 0, cumulativeMultiplier: 1 }),
+  start: () => set({ 
+    isPlaying: true, 
+    roundEnded: false, 
+    diedOnDeathTile: false, 
+    payoutAmount: 0, 
+    cumulativePayoutAmount: 0, 
+    cumulativeMultiplier: 1,
+    initialStake: get().stake, // Store the initial stake when starting
+    totalLoss: 0
+  }),
   endRound: () => set({ isPlaying: false, roundEnded: true }),
 
   selectTile: async (rowIndex, tileIndex, walletAddress, isDeath, rowMultiplier, stakeOverride) => {
@@ -61,8 +74,20 @@ export const useGame = create<GameState>((set, get) => ({
       console.log("cacheTile", { sessionId, rowIndex, tileIndex, isDeath, roundEnded: isDeath, walletAddress });
 
       if (isDeath) {
-        // On death, end round; keep last computed points, zero ETH payout
-        set({ isPlaying: false, roundEnded: true, diedOnDeathTile: true, payoutAmount: 0 });
+        // On death, calculate total loss (initial stake + all accumulated earnings)
+        const { initialStake, cumulativePayoutAmount } = get();
+        const ethEarnings = cumulativePayoutAmount / 150; // Convert death points back to ETH
+        const totalLossAmount = initialStake + ethEarnings; // Stake + earnings lost
+        
+        // Player loses everything - set final payout to 0, track total loss
+        set({ 
+          isPlaying: false, 
+          roundEnded: true, 
+          diedOnDeathTile: true, 
+          payoutAmount: 0,
+          cumulativePayoutAmount: 0, // Lose all accumulated earnings
+          totalLoss: totalLossAmount
+        });
         return;
       }
 
@@ -95,6 +120,8 @@ export const useGame = create<GameState>((set, get) => ({
       tileIndex: p.tileIndex ?? prev.tileIndex,
       cumulativePayoutAmount: p.cumulativePayoutAmount ?? prev.cumulativePayoutAmount,
       diedOnDeathTile: p.diedOnDeathTile ?? prev.diedOnDeathTile,
+      initialStake: p.initialStake ?? prev.initialStake,
+      totalLoss: p.totalLoss ?? prev.totalLoss,
     }));
   },
 }));

@@ -5,7 +5,6 @@ import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
 import { getSessionState, getLastSessionId } from "@/app/services/api";
 import deathtile from "../../public/death-skull.svg";
-import { toast } from "react-toastify";
 
 
 
@@ -22,17 +21,11 @@ const TileBoard = ()=>{
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
 	const [clickedTileIndex, setClickedTileIndex] = useState<Record<number, number>>({}); // row -> clicked tile index
 	const [deathTiles, setDeathTiles] = useState<Record<number, number>>({}); // row -> death tile index
-	const [isSession, setIsSession] = useState(false);
+	// const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
 	const fetchedLastSessionRef = useRef(false);
 	const [spinner, setSpinner] = useState(false);
 	
-
-
-
-	// const shuffleDeathTile = ()=>{
-		
-	// }
 
 	const LoadingSpinner = ({ message = "Loading..." }) => (
 		<div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -106,7 +99,7 @@ const TileBoard = ()=>{
 		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
 		if (!sessionId || rows.length === 0) return;
 
-		setSpinner(true);
+		// setSpinner(true);
 		let cancelled = false;
 		(async () => {
 			try {
@@ -182,7 +175,7 @@ const TileBoard = ()=>{
 		const tiles = rows[actualIdx]?.tiles ?? 0
 		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
 		const isDeath = clickedTileIdx === deathIdx
-		setIsSession(true);
+		// setIsSession(true);
 		
 
 		const rowMult = rows[actualIdx]?.multiplier ?? 1;
@@ -200,13 +193,13 @@ const TileBoard = ()=>{
 			
 			// toast.error("Death tile hit. Round ended.");
 			endRound();
-			setIsSession(false);
+			// setIsSession(false);
 			return;
 		}
 		// move downward (reverse direction) or finish at the bottom row
 		if (activeRow <= 0) {
 			endRound();
-			setIsSession(false);
+			// setIsSession(false);
 			// setReplay(true);
 			
 		} else {
