@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "npx tsc -b && node fix-imports.js",
+    "build": "npx tsc -b",
     "start": "node dist/index.js",
     "dev": "npm run build && nodemon dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"

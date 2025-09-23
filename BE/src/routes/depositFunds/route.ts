@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { User } from "../../Db/schema";
+import { User } from "../../Db/schema.js";
 import { ethers } from "ethers";
-// import { PoolABI } from "../../contracts/abi";
-// import { Payout } from "../../Db/schema";
+// import { PoolABI } from "../../contracts/abi.js";
+// import { Payout } from "../../Db/schema.js";
 
 
 const poolAddress = (process.env.CONTRACT_ADDRESS || process.env.Contract_Address || "").trim();

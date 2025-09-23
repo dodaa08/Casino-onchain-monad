@@ -10,11 +10,11 @@ const PORT = process.env.PORT;
 const MONGO_URL = process.env.MONGO_DB_URL || "";
 
 // routes
-import CacheRouter from "./routes/cache/cache";
-import PayoutsRouter from "./routes/payouts/route";
-import DepositFundsRouter from "./routes/depositFunds/route";
-import UserRouter from "./routes/users/route";
-import WithdrawFundsRouter from "./routes/withdrawFunds/route";
+import CacheRouter from "./routes/cache/cache.js";
+import PayoutsRouter from "./routes/payouts/route.js";
+import DepositFundsRouter from "./routes/depositFunds/route.js";
+import UserRouter from "./routes/users/route.js";
+import WithdrawFundsRouter from "./routes/withdrawFunds/route.js";
 
 const app = express();
 app.use(express.json());
