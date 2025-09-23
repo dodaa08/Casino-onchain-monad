@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { User } from "../../Db/schema.js";
+import { User } from "../../Db/schema";
 const UserRouter = Router();
 
 

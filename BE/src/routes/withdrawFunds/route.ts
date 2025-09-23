@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { User } from "../../Db/schema.js";
+import { User } from "../../Db/schema";
 import { ethers } from "ethers";
-import { PoolABI } from "../../contracts/abi.js";
-import { Payout } from "../../Db/schema.js";
+import { PoolABI } from "../../contracts/abi";
+import { Payout } from "../../Db/schema";
 
 const poolAddress = process.env.Contract_Address || "";
 const provider = new ethers.JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "");

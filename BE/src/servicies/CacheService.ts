@@ -1,4 +1,4 @@
-import redisClient from "../config/redisClient.js";
+import redisClient from "../config/redisClient";
 
 export const setCache = async (key: string, value: any, ttl?: number)=>{
     try{

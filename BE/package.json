@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "npx tsc -b",
+    "build": "npx tsc -b && ./fix-imports.sh",
     "dev": "npm run build && nodemon dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,5 +24,8 @@
     "nodemon": "^3.1.10",
     "redis": "^5.8.2",
     "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "typescript-transform-paths": "^3.5.5"
   }
 }

@@ -1,7 +1,7 @@
-import { User } from "../../Db/schema.js";
+import { User } from "../../Db/schema";
 import { Router } from "express";
-import { Payout } from "../../Db/schema.js";
-import { PoolABI } from "../../contracts/abi.js";
+import { Payout } from "../../Db/schema";
+import { PoolABI } from "../../contracts/abi";
 import { ethers } from "ethers";
 import { JsonRpcProvider, Wallet } from "ethers";
 import dotenv from "dotenv";
