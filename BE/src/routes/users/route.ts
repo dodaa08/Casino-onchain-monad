@@ -55,7 +55,7 @@ const getUser = async (req: any, res: any) => {
 const getAllUsersWithtotalEarned = async (req: any, res: any) => {
     try{
         const users = await User.find();
-        const usersWithtotalEarned = users.map((user) => ({
+        const usersWithtotalEarned = users.map((user: any) => ({
             walletAddress: user.walletAddress,
             totalEarned: user.totalEarned,
             balance: user.balance,
