@@ -333,7 +333,7 @@ import { useGame } from "../store/useGame";
             <div className="flex justify-between items-center gap-4 w-full">
               <button 
                 onClick={() => handleStartGame(diedOnDeathTile)} 
-                className="min-w-[200px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg"
+                 className="min-w-[200px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg"
               >
                 {diedOnDeathTile ? "Replay" : "Start Game"}
               </button>
