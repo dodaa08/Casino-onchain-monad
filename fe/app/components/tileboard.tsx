@@ -15,7 +15,7 @@ type BoardRow = {
 
 const TileBoard = ()=>{
 	const [rows, setRows] = useState<BoardRow[]>([]);
-	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay } = useGame();
+	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay, shuffleBoard, setShuffleBoard } = useGame();
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
@@ -236,7 +236,7 @@ const TileBoard = ()=>{
 	};
 
 
-// Shuffle on Replay
+// Shuffle on Replay or any fresh start
 	useEffect(()=>{
 		if(Replay){
 			// Generate new sessionId for fresh death tiles
@@ -249,7 +249,22 @@ const TileBoard = ()=>{
 			// Reset replay flag
 			setReplay(false);
 		}
-	}, [Replay, setSessionId, setReplay])
+	}, [Replay, setSessionId, setReplay]);
+
+	// Shuffle board for any fresh start (Start Game, Play Demo, Replay)
+	useEffect(() => {
+		if(shuffleBoard) {
+			// Generate new sessionId for fresh death tiles
+			const newSessionId = crypto.randomUUID();
+			setSessionId(newSessionId);
+			
+			// Regenerate board with new layout
+			regenerateBoard();
+			
+			// Reset shuffle flag
+			setShuffleBoard(false);
+		}
+	}, [shuffleBoard, setSessionId, setShuffleBoard]);
 
 
 	return(

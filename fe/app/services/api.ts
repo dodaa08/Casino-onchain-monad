@@ -134,4 +134,25 @@ export const getCachedPayouts = async (walletAddress: string)=>{
   if (!res.ok) throw new Error(`getCachedPayouts failed: ${res.status}`);
   console.log("[API] getCachedPayouts ok", res.status);
   return res.json();
-}
+};
+
+// clear cache for replay
+export const clearCache = async (walletAddress: string)=>{
+  console.log("[API] clearCache ->", walletAddress);
+  const res = await fetch(`${base}/api/cache/clear-cache`, {
+    method: "POST", 
+    headers: { "Content-Type": "application/json" }, 
+    body: JSON.stringify({ walletAddress }),
+  });
+  if (!res.ok) throw new Error(`clearCache failed: ${res.status}`); 
+  const data = await res.json();
+  console.log("[API] clearCache ok", res.status);
+  return data;
+};
+
+
+
+
+// Desposit funds : 
+
+

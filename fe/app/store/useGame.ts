@@ -11,9 +11,11 @@ type GameState = {
   tileIndex: number;
   setSessionId: (id: string) => void;
   Replay: boolean;
+  shuffleBoard: boolean; // Flag to trigger board shuffling for any fresh start
   start: () => void;
   endRound: () => void;
   setReplay: (replay: boolean) => void;
+  setShuffleBoard: (shuffle: boolean) => void;
   // rowMultiplier is optional for backward compatibility; stakeOverride optional if you want to pass stake per click
   selectTile: (row: number, tile: number, walletAddress: string, isDeath: boolean, rowMultiplier?: number, stakeOverride?: number) => Promise<void>;
   rehydrate: (p: Partial<Pick<GameState, "isPlaying" | "roundEnded" | "sessionId" | "rowIndex" | "tileIndex" | "cumulativePayoutAmount" | "diedOnDeathTile" | "initialStake" | "totalLoss">>) => void;
@@ -41,7 +43,9 @@ export const useGame = create<GameState>((set, get) => ({
   initialStake: 0,
   totalLoss: 0,
   Replay: false,
+  shuffleBoard: false,
   setReplay: (replay) => set({ Replay: replay }),
+  setShuffleBoard: (shuffle) => set({ shuffleBoard: shuffle }),
 
   setStake: (s) => set({ stake: s }),
   setSessionId: (id) => set({ sessionId: id }),

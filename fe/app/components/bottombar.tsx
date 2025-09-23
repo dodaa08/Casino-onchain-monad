@@ -1,19 +1,33 @@
-  "use client"
+"use client"
 
-  import { useAccount } from "wagmi";
-  import { useGame } from "../store/useGame";
+import { useAccount } from "wagmi";
+import { useGame } from "../store/useGame";
   import { useState, useEffect, useRef } from "react";
-  import { cachePayouts, getCachedPayouts } from "../services/api";
-  import { useQuery } from "@tanstack/react-query";
+  import { cachePayouts, getCachedPayouts, clearCache } from "../services/api";
+  import { useQuery, useQueryClient } from "@tanstack/react-query";
   import { toast } from "react-toastify";
+  import DepositDialog from "./DepositDialog";
+  import { FetchDepositFunds } from "../services/OnchainApi/api";
+  import { useBalance } from "wagmi";
 
   const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
+  const queryClient = useQueryClient();
   const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss } = useGame();
-    const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
-    const [mounted, setMounted] = useState(false);
-    const deathToastShownRef = useRef(false);
-    const [finalPayoutAmountMON, setFinalPayoutAmountMON] = useState("0.0000"); // Final payout amount in MON
+  const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const deathToastShownRef = useRef(false);
+  const [finalPayoutAmountMON, setFinalPayoutAmountMON] = useState("0.0000"); // Final payout amount in MON
+  const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
+  const [depositFunds, setDepositFunds] = useState(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [justStartedFresh, setJustStartedFresh] = useState(false);
+  const [isMonitoringDeposit, setIsMonitoringDeposit] = useState(false);
+  const [expectedBalance, setExpectedBalance] = useState<number | null>(null);
+  const { data: balance } = useBalance({address: walletAddress});
+  
+
+
 
     useEffect(() => {
       setMounted(true);
@@ -76,21 +90,23 @@
     const cachedNum = cachedRaw != null ? Number(cachedRaw) : null;
 
 
-    // Rehydrate earnings from cache when mounted
+    // Rehydrate earnings from cache when mounted (but not after fresh start or if Replay is set)
     useEffect(() => {
-      if (mounted && cachedNum != null && Number.isFinite(cachedNum)) {
+      if (mounted && cachedNum != null && Number.isFinite(cachedNum) && !justStartedFresh && !Replay) {
         if (isPlaying && !roundEnded && cumulativePayoutAmount === 0) {
           // Rehydrate during active play
           console.log("[BottomBar] rehydrating earnings from cache:", cachedNum);
           setCumulativePayoutAmount(cachedNum);
-        } else if (roundEnded && finalPayoutAmount === 0) {
-          // Rehydrate final payout after round ended
+        } else if (roundEnded && finalPayoutAmount === 0 && !diedOnDeathTile) {
+          // Only rehydrate final payout if we didn't die on death tile
           console.log("[BottomBar] rehydrating final payout from cache:", cachedNum);
           setFinalPayoutAmount(cachedNum);
           setCumulativePayoutAmount(cachedNum);
         }
+      } else if (justStartedFresh || Replay || diedOnDeathTile) {
+        console.log("[BottomBar] Skipping rehydration - fresh start, replay, or died on death tile");
       }
-    }, [mounted, isPlaying, roundEnded, cachedNum, cumulativePayoutAmount, finalPayoutAmount, setCumulativePayoutAmount]);
+    }, [mounted, isPlaying, roundEnded, cachedNum, cumulativePayoutAmount, finalPayoutAmount, setCumulativePayoutAmount, justStartedFresh, Replay, diedOnDeathTile]);
 
     // Debug logging
     console.log("[BottomBar] state:", { 
@@ -103,8 +119,10 @@
       cachedRaw, 
       cachedNum,
       isCachedLoading,
-      walletAddress
+      walletAddress,
+      depositFunds
     });
+
 
     const handleStart = ()=>{
       start();
@@ -122,30 +140,237 @@
       toast.success(`Round replayed.`);
     }
 
-    return (
-      <div className="fixed inset-x-0 bottom-6 flex justify-center px-4">
-        <div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 py-5  shadow-gray-900 shadow-inner">
+
+    const handleStartGame = async (isReplay: boolean = false) => {
+      try {
+        // Set this FIRST to prevent rehydration from running during start
+        setJustStartedFresh(true); 
+        setFinalPayoutAmount(0);
+        deathToastShownRef.current = false;
+        
+        // Clear cache before starting any game (demo or replay)
+        if (walletAddress) {
+          await clearCache(walletAddress);
+          console.log("[BottomBar] Cache cleared for", isReplay ? "replay" : "start");
+          
+          // Invalidate React Query cache for this wallet
+          queryClient.invalidateQueries({ 
+            queryKey: ["cachedPayouts", walletAddress] 
+          });
+          console.log("[BottomBar] React Query cache invalidated");
+        }
+        
+        // Start game AFTER setting justStartedFresh flag
+        start(); // This already resets cumulativePayoutAmount and other game state
+        setReplay(isReplay);
+        
+        // Reset the flag after a brief delay
+        setTimeout(() => setJustStartedFresh(false), 1000);
+        
+        const message = isReplay ? "Round replayed. Cache cleared." : "Round started.";
+        toast.success(message);
+        
+      } catch (error) {
+        console.error("Error clearing cache:", error);
+        // Still start the game even if cache clear fails
+        setJustStartedFresh(true); // Set this FIRST
+        setFinalPayoutAmount(0);
+        deathToastShownRef.current = false;
+        start(); // This already handles the state reset
+        setReplay(isReplay);
+        
+        // Reset the flag after a brief delay
+        setTimeout(() => setJustStartedFresh(false), 1000);
+        
+        const message = isReplay ? "Round replayed." : "Round started.";
+        toast.success(message);
+      }
+    };
+
+
+    const fetchUserBalance = async () => {
+      if(walletAddress){
+        setIsLoadingBalance(true);
+        console.log("Fetching deposit balance for:", walletAddress);
+        try {
+          const res = await FetchDepositFunds(walletAddress);
+          console.log("Deposit balance response:", res.data);
+          const newBalance = res.data.user.DepositBalance;
+          setDepositFunds(newBalance);
+          console.log("Set deposit funds to:", newBalance);
+          return newBalance;
+        } catch (error) {
+          console.error("Error fetching deposit balance:", error);
+          throw error;
+        } finally {
+          setIsLoadingBalance(false);
+        }
+      }
+    };
+
+
+
+
+    // Fetch deposit funds when wallet address changes
+    useEffect(()=>{
+      if (walletAddress) {
+        fetchUserBalance();
+      }
+    }, [walletAddress])
+
+    // Reset deposit funds to 0 ONLY when user dies (not when they win)
+    useEffect(() => {
+      if (diedOnDeathTile && roundEnded) {
+        console.log("[BottomBar] User died - setting deposit funds to 0");
+        setDepositFunds(0);
+      }
+    }, [diedOnDeathTile, roundEnded])
+
+    // Monitor backend balance after deposit
+    useEffect(() => {
+      let intervalId: NodeJS.Timeout;
+      let timeoutId: NodeJS.Timeout;
+      
+      if (isMonitoringDeposit && expectedBalance !== null && walletAddress) {
+        console.log("[BottomBar] Starting balance monitoring for expected:", expectedBalance);
+        
+        const checkBalance = async () => {
+          try {
+            const response = await FetchDepositFunds(walletAddress);
+            const currentBalance = response.data.user.DepositBalance;
+            
+            console.log("[BottomBar] Backend balance check:", currentBalance, "expected:", expectedBalance);
+            
+            if (currentBalance >= expectedBalance) {
+              // Backend has processed the deposit!
+              console.log("[BottomBar] Backend processed deposit successfully!");
+              setIsMonitoringDeposit(false);
+              setExpectedBalance(null);
+              
+              // Refresh the balance and show success
+              await fetchUserBalance();
+              toast.success("Deposit processed! You can now start playing.");
+            }
+          } catch (error) {
+            console.error("[BottomBar] Error checking backend balance:", error);
+          }
+        };
+        
+        // Check immediately, then every 2 seconds
+        checkBalance();
+        intervalId = setInterval(checkBalance, 2000);
+        
+        // Stop checking after 30 seconds (timeout)
+        timeoutId = setTimeout(() => {
+          console.log("[BottomBar] Balance check timeout - refreshing anyway");
+          setIsMonitoringDeposit(false);
+          setExpectedBalance(null);
+          fetchUserBalance();
+          toast.info("Deposit processed - balance updated!");
+        }, 30000);
+      }
+      
+      return () => {
+        if (intervalId) clearInterval(intervalId);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    }, [isMonitoringDeposit, expectedBalance, walletAddress]);
+
+    // Function to start monitoring after deposit
+    const startDepositMonitoring = (depositAmount: number) => {
+      const newExpectedBalance = depositFunds + depositAmount;
+      console.log("[BottomBar] Starting deposit monitoring for amount:", depositAmount, "expected balance:", newExpectedBalance);
+      
+      // Optimistic UI update - immediately update frontend
+      setDepositFunds(newExpectedBalance);
+      console.log("[BottomBar] Optimistic UI update - set deposit funds to:", newExpectedBalance);
+      
+      setExpectedBalance(newExpectedBalance);
+      setIsMonitoringDeposit(true);
+      toast.info("Processing deposit on blockchain...");
+    };
+
+
+
+    // Spinner component
+    const LoadingSpinner = () => (
+      <div className="flex items-center justify-center">
+        <svg className="animate-spin h-6 w-6 text-lime-400" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span className="ml-2 text-lime-400">Loading...</span>
+      </div>
+    );
+
+
+    const handleDialogOpen = () => {
+      if(balance && parseFloat(balance.formatted) < depositFunds){
+        toast.error("You don't have enough balance to deposit");
+        return;
+      } else {
+        setIsDepositDialogOpen(true);
+      }
+    }
+
+    
+	
+	return (
+      <>
+      <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 ">
+         <div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 pt-10 pb-6  shadow-gray-900 shadow-inner">
           
         <div className="flex flex-col justify-between items-center gap-4">
     {/* Left */}
     <div>
-      {!mounted ? (
-        <span>...</span>
+      {!mounted || isLoadingBalance || isMonitoringDeposit ? (
+        <LoadingSpinner />
       ) : !isPlaying && walletAddress ? (
         <>
-        <div className="flex justify-between items-center gap-4">
-
-        
-        <button 
-        onClick={diedOnDeathTile ? handleReplay : handleStart} 
-        className="min-w-[180px] mt-2 h-10 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
-        >
-        {diedOnDeathTile ? "Replay" : "Play Demo"}
-      </button>
-        
-        <button className="min-w-[180px] mt-2 h-10 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors">Add Funds</button>
-        
+        {depositFunds > 0 ? (
+          // User has deposited funds - show Start button and balance
+          <div className="flex flex-col gap-4 items-center">
+            <div className="flex justify-between items-center gap-4 w-full">
+              <button 
+                onClick={() => handleStartGame(diedOnDeathTile)} 
+                className="min-w-[200px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg"
+              >
+                {diedOnDeathTile ? "Replay" : "Start Game"}
+              </button>
+              
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-gray-400 text-sm">Deposited Balance</span>
+                <span className="text-lime-400 text-xl font-bold">{depositFunds.toFixed(4)} MON</span>
+              </div>
+            </div>
           </div>
+        ) : (
+          // User hasn't deposited - show demo and deposit options
+          <>
+          <div className="flex justify-between items-end gap-4">
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={diedOnDeathTile ? handleReplay : handleStart} 
+                className="min-w-[180px] h-10 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
+              >
+                {diedOnDeathTile ? "play Demo" : "Play Demo"}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => handleDialogOpen()}
+                className="min-w-[180px] h-10 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
+              >
+                Add Funds
+              </button>
+            </div>
+          </div>
+          <div className="w-full flex justify-center mt-2">
+            <span className="text-lime-400 text-lg text-center">You need to add funds to play and earn</span>
+          </div>
+          </>
+        )}
         </>
       
       ) :
@@ -155,9 +380,9 @@
       ) : isPlaying ? (
         <span></span>
       ) : (
-        <span>Round Ended</span>
+								<span>Round Ended</span>
       )}
-    </div>
+				</div>
 
     {/* Right */}
     <div className="w-full flex justify-center">
@@ -170,7 +395,7 @@
       <div className="flex justify-center">
         <button className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md">Withdraw</button>
       </div>  
-      </div>
+					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">
 
@@ -185,9 +410,17 @@
     ) : null}
   </div>
   </div>
-        </div>
-      </div>
-    )
-  }
+			</div>
+		</div>
 
-  export default BottomBar;
+      {/* Deposit Dialog */}
+      <DepositDialog 
+        isOpen={isDepositDialogOpen} 
+        onClose={() => setIsDepositDialogOpen(false)}
+        onDepositSuccess={startDepositMonitoring}
+      />
+    </>
+	)
+}
+
+export default BottomBar;
