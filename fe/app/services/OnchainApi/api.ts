@@ -101,7 +101,43 @@ export const FetchDepositFunds = async (walletAddress: string) => {
 
 
 
+// Withdraw funds
 
+
+export const WithdrawFunds = async (amount: number, signer: ethers.Signer) => {
+    const walletAddress = await signer.getAddress();
+    try{
+        console.log("[WithdrawFunds] Sending request:", { walletAddress, amount });
+        
+        const backendResponse = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL}/api/withdrawFunds/wd`, {
+            walletAddress: walletAddress,
+            amount: amount
+        });
+
+        if(backendResponse.status !== 200){
+            throw new Error("Failed to withdraw funds");
+        }
+
+        return backendResponse;
+
+    }
+    catch(error: any){
+        console.error("WithdrawFunds error:", error);
+        console.error("Error response data:", JSON.stringify(error.response?.data, null, 2));
+        console.error("Error status:", error.response?.status);
+        console.error("Error message:", error.response?.data?.message);
+        throw error;
+    }
+}
+
+
+
+// Leaderboard data
+
+export const FetchLeaderboardData = async () => {
+    const backendResponse = await axios.get(`${process.env.NEXT_PUBLIC_BE_URL}/api/leaderboard/leaderboard-data`);
+    return backendResponse;
+}
 
 
 

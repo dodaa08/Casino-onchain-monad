@@ -1,18 +1,36 @@
-type Entry = { address: string; earnedEth: number }
+"use client";
 
-type LeaderboardProps = {
-	entries?: Entry[]
+import { useEffect, useState } from "react";
+
+import { FetchLeaderboardData } from "../services/OnchainApi/api";
+// import { useEffect, useState } from "react";
+
+
+
+type LeaderboardEntry = {
+	rank: number;
+	walletAddress: string;
+	totalEarned: number;
+	roundsPlayed: number;
 }
 
-const defaultEntries: Entry[] = [
-	{ address: "0xSauceBauce...", earnedEth: 7.1035 },
-	{ address: "0xhoco......", earnedEth: 6.3008 },
-	{ address: "0xzelph....", earnedEth: 2.9653 },
-	{ address: "0xcole.....", earnedEth: 2.7719 },
-]
+
+const Leaderboard = ()=>{
+	const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+	useEffect(() => {
+		const fetchLeaderboardData = async () => {
+			try {
+				const response = await FetchLeaderboardData();
+				setEntries(response.data.data.leaderboard);
+			} catch (error) {
+				console.error("Failed to fetch leaderboard:", error);
+			}
+		}
+		fetchLeaderboardData();
+	}, []);
 
 
-const Leaderboard = ({ entries = defaultEntries }: LeaderboardProps)=>{
+
 	return (
 		<>
 		
@@ -26,11 +44,11 @@ const Leaderboard = ({ entries = defaultEntries }: LeaderboardProps)=>{
 						{entries.slice(0, 4).map((e, i) => (
 							<li key={i} className="flex items-center justify-between px-4 py-3">
 								<div className="flex items-center gap-3">
-									<span className="text-gray-400 text-xs w-4">{i + 1}</span>
-									<span className="text-gray-200 text-sm truncate max-w-[120px]">{e.address}</span>
+									<span className="text-gray-400 text-xs w-4">{e.rank}</span>
+									<span className="text-gray-200 text-sm truncate max-w-[120px]">{e.walletAddress}</span>
 								</div>
 								<div className="text-right">
-									<span className="text-lime-400 font-semibold tabular-nums text-sm">+{e.earnedEth.toFixed(4)}</span>
+									<span className="text-lime-400 font-semibold tabular-nums text-sm">+{e.totalEarned.toFixed(4)}</span>
 									<span className="text-gray-400 text-xs ml-1">MON</span>
 								</div>
 							</li>

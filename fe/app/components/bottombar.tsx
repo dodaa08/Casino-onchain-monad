@@ -9,8 +9,11 @@ import { useGame } from "../store/useGame";
   import DepositDialog from "./DepositDialog";
   import { FetchDepositFunds } from "../services/OnchainApi/api";
   import { useBalance } from "wagmi";
+  import { WithdrawFunds } from "../services/OnchainApi/api";
+  import { useWalletClient } from "wagmi";
 
-  const BottomBar = ()=>{
+
+const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
   const queryClient = useQueryClient();
   const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss } = useGame();
@@ -25,7 +28,7 @@ import { useGame } from "../store/useGame";
   const [isMonitoringDeposit, setIsMonitoringDeposit] = useState(false);
   const [expectedBalance, setExpectedBalance] = useState<number | null>(null);
   const { data: balance } = useBalance({address: walletAddress});
-  
+  const { data: walletClient } = useWalletClient();
 
 
 
@@ -120,7 +123,10 @@ import { useGame } from "../store/useGame";
       cachedNum,
       isCachedLoading,
       walletAddress,
-      depositFunds
+      depositFunds,
+      mounted,
+      isLoadingBalance,
+      isMonitoringDeposit
     });
 
 
@@ -313,6 +319,92 @@ import { useGame } from "../store/useGame";
       }
     }
 
+
+
+
+
+
+    // Handle withdraw
+
+    const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+    const handleWithdraw = async () => {
+      if (!walletClient || !depositFunds || depositFunds <= 0) {
+        toast.error("No funds available to withdraw");
+        return;
+      }
+
+      try {
+        setIsWithdrawing(true);
+        
+        // Calculate total withdrawable amount (deposits + current earnings)
+        const currentEarnings = (cumulativePayoutAmount / 150); // Convert death points to ETH
+        const totalWithdrawable = depositFunds + currentEarnings;
+        
+        console.log("[Withdraw] Withdrawing:", totalWithdrawable, "ETH");
+        toast.info("Processing withdrawal...");
+
+        // Convert wagmi client to ethers signer
+        const { ethers } = await import("ethers");
+        const provider = new ethers.BrowserProvider(walletClient);
+        const signer = await provider.getSigner();
+        
+        const response = await WithdrawFunds(totalWithdrawable, signer);
+        
+        if (response.status === 200) {
+          const txHash = response.data.data?.transactionHash || 'unknown';
+          console.log("🎉 WITHDRAWAL SUCCESS! Transaction Hash:", txHash);
+          console.log("💰 Amount withdrawn:", totalWithdrawable.toFixed(4), "MON");
+          console.log("📝 Full response:", response.data);
+          
+          toast.success(`Successfully withdrew ${totalWithdrawable.toFixed(4)} MON! TX: ${txHash.slice(0, 10)}...`);
+          
+          // End the current round completely
+          console.log("🏁 Ending round after withdrawal...");
+          setCumulativePayoutAmount(0);
+          setFinalPayoutAmount(0);
+          setDepositFunds(0);
+          
+          // Reset ALL game state to return to initial state
+          useGame.setState({
+            isPlaying: false,
+            roundEnded: false,
+            diedOnDeathTile: false,
+            cumulativePayoutAmount: 0,
+            payoutAmount: 0,
+            totalLoss: 0,
+            Replay: false
+          });
+          
+          console.log("🔄 Game state completely reset after withdrawal");
+          
+          // Clear cache
+          if (walletAddress) {
+            await clearCache(walletAddress);
+            queryClient.invalidateQueries({ queryKey: ["cachedPayouts", walletAddress] });
+            console.log("🧹 Cache cleared after withdrawal");
+          }
+          
+          // Refresh balance from backend
+          await fetchUserBalance();
+          console.log("💾 Balance refreshed from backend");
+        }
+        
+      } catch (error: any) {
+        console.error("Withdrawal error:", error);
+        const errorMessage = error.response?.data?.message || error.message || "Withdrawal failed";
+        const maxWithdrawable = error.response?.data?.maxWithdrawable;
+        
+        if (maxWithdrawable && maxWithdrawable > 0) {
+          toast.error(`${errorMessage}. You can withdraw up to ${maxWithdrawable.toFixed(4)} ETH currently.`);
+        } else {
+          toast.error(errorMessage);
+        }
+      } finally {
+        setIsWithdrawing(false);
+      }
+    };
+
     
 	
 	return (
@@ -392,9 +484,17 @@ import { useGame } from "../store/useGame";
       <div className="flex flex-col gap-2">
       <span className="text-lime-400 text-xl">Earnings: { (cumulativePayoutAmount / 150).toFixed(4) } MON</span>
 
-      <div className="flex justify-center">
-        <button className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md">Withdraw</button>
-      </div>  
+      {depositFunds > 0 && (
+        <div className="flex justify-center">
+          <button 
+            onClick={handleWithdraw}
+            disabled={isWithdrawing}
+            className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isWithdrawing ? "Withdrawing..." : "Withdraw"}
+          </button>
+        </div>
+      )}
 					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">
@@ -403,9 +503,6 @@ import { useGame } from "../store/useGame";
         {diedOnDeathTile ? "Final Earnings: 0.0000 MON" : `Final Earnings: ${finalPayoutAmountMON} MON`}
       </span>
     
-    <div className="flex justify-center">
-      <button className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md"> Withdraw</button>
-      </div>
     </div>
     ) : null}
   </div>
