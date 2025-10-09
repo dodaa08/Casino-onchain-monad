@@ -11,7 +11,8 @@ import { useGame } from "../store/useGame";
   import { useBalance } from "wagmi";
   import { WithdrawFunds } from "../services/OnchainApi/api";
   import { useWalletClient } from "wagmi";
-
+  import { getReferredUser } from "@/app/services/api";
+  import { ReferralRewardPayout } from "../services/OnchainApi/api";
 
 const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
@@ -29,6 +30,27 @@ const BottomBar = ()=>{
   const [expectedBalance, setExpectedBalance] = useState<number | null>(null);
   const { data: balance } = useBalance({address: walletAddress});
   const { data: walletClient } = useWalletClient();
+  const [referredUser, setReferredUser] = useState("");
+  const [isReferredUser, setIsReferredUser] = useState(false);
+  const [referredUserReward, setReferredUserReward] = useState(0);
+
+
+  useEffect(() => {
+    if(walletAddress){
+      getReferredUser(walletAddress).then((res) => {
+        setReferredUser(res.referredUser);
+        if(res.referredUser){
+          setIsReferredUser(true);
+        }
+        else{
+          setIsReferredUser(false);
+        }
+      });
+    }
+  }, [walletAddress]);
+
+
+  
 
 
 
@@ -293,7 +315,23 @@ const BottomBar = ()=>{
       
       setExpectedBalance(newExpectedBalance);
       setIsMonitoringDeposit(true);
-      toast.info("Processing deposit on blockchain...");
+      // toast.info("Processing deposit on blockchain...");
+      try {
+        // If an error occurs during deposit initiation, it might be caught here
+        // However, the actual transaction rejection might be in DepositDialog
+        toast.info("Processing deposit...");
+      } catch (error: any) {
+        console.error("[BottomBar] Error initiating deposit monitoring:", error);
+        if (error?.code === 4001 || error?.message?.includes("user denied") || error?.message?.includes("User rejected")) {
+          toast.error("Deposit transaction rejected. Please confirm the transaction in your wallet to proceed.");
+        } else {
+          toast.error("Error processing deposit. Please try again.");
+        }
+        // Reset optimistic update on error
+        setDepositFunds(depositFunds);
+        setExpectedBalance(null);
+        setIsMonitoringDeposit(false);
+      }
     };
 
 
@@ -336,12 +374,42 @@ const BottomBar = ()=>{
 
       try {
         setIsWithdrawing(true);
+        // Check if user has a referrer and calculate referral reward
+        let referralReward = 0;
+        let adjustedWithdrawable = 0;
+        if (isReferredUser && referredUser) {
+          referralReward = depositFunds * 0.05;
+          console.log(`[Withdraw] Referral reward of ${referralReward.toFixed(4)} MON will be sent to referrer: ${referredUser}`);
+          toast.info(`5% of your deposit (${referralReward.toFixed(4)} MON) will be shared with your referrer.`);
+          // Update the reward state
+          setReferredUserReward(referredUserReward + referralReward);
+          // Transfer referral reward before user withdrawal
+          if (walletAddress) {
+            try {
+              console.log(`[Withdraw] Transferring referral reward of ${referralReward.toFixed(4)} MON to referrer before withdrawal`);
+              const referralResponse = await ReferralRewardPayout(walletAddress, referralReward);
+              if (referralResponse.status === 200) {
+                toast.success(`Successfully transferred referral reward of ${referralReward.toFixed(4)} MON to referrer`);
+                setReferredUserReward(0);
+                // Adjust the deposit funds to reflect the deduction
+                setDepositFunds(depositFunds - referralReward);
+              } else {
+                toast.error("Failed to transfer referral reward to referrer, proceeding with full withdrawal");
+                referralReward = 0; // Reset to avoid deduction if transfer fails
+              }
+            } catch (error) {
+              console.error("Error transferring referral reward before withdrawal:", error);
+              toast.error("Failed to transfer referral reward to referrer, proceeding with full withdrawal");
+              referralReward = 0; // Reset to avoid deduction if transfer fails
+            }
+          }
+        }
         
-        // Calculate total withdrawable amount (deposits + current earnings)
+        // Calculate total withdrawable amount (deposits + current earnings) after referral deduction
         const currentEarnings = (cumulativePayoutAmount / 150); // Convert death points to ETH
-        const totalWithdrawable = depositFunds + currentEarnings;
+        adjustedWithdrawable = (depositFunds - referralReward) + currentEarnings;
         
-        console.log("[Withdraw] Withdrawing:", totalWithdrawable, "ETH");
+        console.log("[Withdraw] Withdrawing:", adjustedWithdrawable, "ETH");
         toast.info("Processing withdrawal...");
 
         // Convert wagmi client to ethers signer
@@ -349,15 +417,15 @@ const BottomBar = ()=>{
         const provider = new ethers.BrowserProvider(walletClient);
         const signer = await provider.getSigner();
         
-        const response = await WithdrawFunds(totalWithdrawable, signer);
+        const response = await WithdrawFunds(adjustedWithdrawable, signer);
         
         if (response.status === 200) {
           const txHash = response.data.data?.transactionHash || 'unknown';
           console.log("🎉 WITHDRAWAL SUCCESS! Transaction Hash:", txHash);
-          console.log("💰 Amount withdrawn:", totalWithdrawable.toFixed(4), "MON");
+          console.log("💰 Amount withdrawn:", adjustedWithdrawable.toFixed(4), "MON");
           console.log("📝 Full response:", response.data);
           
-          toast.success(`Successfully withdrew ${totalWithdrawable.toFixed(4)} MON! TX: ${txHash.slice(0, 10)}...`);
+          toast.success(`Successfully withdrew ${adjustedWithdrawable.toFixed(4)} MON! TX: ${txHash.slice(0, 10)}...`);
           
           // End the current round completely
           console.log("🏁 Ending round after withdrawal...");
@@ -395,7 +463,9 @@ const BottomBar = ()=>{
         const errorMessage = error.response?.data?.message || error.message || "Withdrawal failed";
         const maxWithdrawable = error.response?.data?.maxWithdrawable;
         
-        if (maxWithdrawable && maxWithdrawable > 0) {
+        if (error?.code === 4001 || errorMessage?.includes("user denied") || errorMessage?.includes("User rejected")) {
+          toast.error("Withdrawal transaction rejected. Please confirm the transaction in your wallet to proceed.");
+        } else if (maxWithdrawable && maxWithdrawable > 0) {
           toast.error(`${errorMessage}. You can withdraw up to ${maxWithdrawable.toFixed(4)} ETH currently.`);
         } else {
           toast.error(errorMessage);
@@ -405,6 +475,37 @@ const BottomBar = ()=>{
       }
     };
 
+
+
+    // Remove the separate handleWithdrawReferredUserReward function as it's now handled during withdrawal
+    /*
+    const handleWithdrawReferredUserReward = async () => {
+      if (!referredUser) {
+        toast.error("No referrer found");
+        return;
+      }
+
+      try {
+        const response = await ReferralRewardPayout(referredUser, referredUserReward);
+        if(response.status === 200){
+          toast.success("Successfully transferred referral reward to referrer");
+          setReferredUserReward(0);
+        }
+        else{
+          toast.error("Failed to transfer referral reward");
+        }
+      } catch (error) {
+        console.error("Error transferring referral reward:", error);
+        toast.error("Failed to transfer referral reward");
+      }
+    };
+
+    useEffect(() => {
+      if(isReferredUser && referredUserReward > 0){
+        handleWithdrawReferredUserReward();
+      }
+    }, [isReferredUser, referredUserReward]);
+    */
     
 	
 	return (
@@ -506,6 +607,14 @@ const BottomBar = ()=>{
     </div>
     ) : null}
   </div>
+  {/* {
+    isReferredUser && referredUser && (
+      <div className="flex flex-row justify-between items-center gap-4">
+        <span className="text-lime-400 text-xl py-2">Referral Reward: {referredUserReward.toFixed(4)} MON</span>
+        <button className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md" onClick={() => handleWithdrawReferredUserReward()}>Transfer to Referrer</button>
+      </div>
+    )
+  } */}
   </div>
 			</div>
 		</div>

@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 import { FetchLeaderboardData } from "../services/OnchainApi/api";
 // import { useEffect, useState } from "react";
 
-
-
 type LeaderboardEntry = {
 	rank: number;
 	walletAddress: string;

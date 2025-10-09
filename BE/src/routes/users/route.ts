@@ -68,8 +68,80 @@ const getAllUsersWithtotalEarned = async (req: any, res: any) => {
     }
 }
 
+// Route to handle wallet connection and store referral details
+const connectWallet = async (req: any, res: any) => {
+  const { walletAddress, referrer } = req.body;
+
+  console.log("Wallet connection request received:", { walletAddress, referrer });
+
+  // Input validation
+  if (!walletAddress) {
+    console.log("Validation failed - missing walletAddress");
+    return res.status(400).json({ 
+      success: false, 
+      message: "Missing required field: walletAddress" 
+    });
+  }
+
+  try {
+    // Find or create user
+    let user = await User.findOne({ walletAddress });
+    if (!user) {
+      console.log(`Creating new user for wallet: ${walletAddress}`);
+      user = await User.create({
+        walletAddress: walletAddress,
+        DepositBalance: 0,
+        balance: 0,
+        totalEarned: 0,
+        roundsPlayed: 0,
+        payouts: 0,
+        referrer: referrer || "",
+        isReferred: !!referrer
+      });
+    } else {
+      // If user exists, ensure referrer is not overwritten if already set
+      if (!user.referrer && referrer) {
+        console.log(`Updating referrer for existing user: ${walletAddress}`);
+        user = await User.findOneAndUpdate(
+          { walletAddress },
+          { referrer: referrer, isReferred: true },
+          { new: true }
+        );
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Wallet connected successfully", 
+      user: user
+    });
+  } catch (error: any) {
+    console.error("Wallet connection error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+
+const getReferredUser = async (req: any, res: any) => {
+  const { walletAddress } = req.body;
+  try {
+    const referredUser = await User.findOne({ walletAddress: walletAddress });
+    console.log("getReferredUser res:", referredUser?.referrer);
+    res.status(200).json({ success: true, referredUser: referredUser?.referrer });
+  } catch (error) {
+    console.error("getReferredUser error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
+
 
 UserRouter.post("/get-user/:walletAddress", getUser);
 UserRouter.post("/create-user", createUser);
 UserRouter.post("/leaderboard-data", getAllUsersWithtotalEarned);
+UserRouter.post("/wallet-connect", connectWallet);
+UserRouter.post("/get-referred-user", getReferredUser);
 export default UserRouter;

@@ -155,10 +155,7 @@ const FetchDepositFunds = async (req: any, res: any) => {
             });
         }
         
-        console.log("User found/created:", { 
-            walletAddress: user.walletAddress, 
-            DepositBalance: user.DepositBalance 
-        });
+       
         
         res.status(200).json({ 
             success: true, 

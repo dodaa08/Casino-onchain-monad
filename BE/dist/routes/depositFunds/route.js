@@ -125,10 +125,6 @@ const FetchDepositFunds = async (req, res) => {
                 payouts: 0
             });
         }
-        console.log("User found/created:", {
-            walletAddress: user.walletAddress,
-            DepositBalance: user.DepositBalance
-        });
         res.status(200).json({
             success: true,
             message: "User balance fetched successfully",

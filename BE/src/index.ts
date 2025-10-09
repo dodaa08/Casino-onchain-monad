@@ -5,7 +5,6 @@ dotenv.config();
 import cors from "cors";
 
 
-
 const PORT = process.env.PORT;
 const MONGO_URL = process.env.MONGO_DB_URL || "";
 
@@ -28,7 +27,7 @@ app.use(express.json());
 // }));
 
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: "*",
     methods: ["GET","POST","PUT","DELETE","OPTIONS"],
     allowedHeaders: ["Content-Type","Authorization"],
   }));

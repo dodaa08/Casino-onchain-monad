@@ -69,7 +69,7 @@ export const DepositFunds = async (amount: number, signer: ethers.Signer) => {
                 throw new Error("Failed to deposit funds");
             }
         }
-            toast.success("Database updated successfully");
+            // toast.success("Database updated successfully");
 
         return backendResponse;
     } catch (error: any) {
@@ -138,6 +138,17 @@ export const FetchLeaderboardData = async () => {
     const backendResponse = await axios.get(`${process.env.NEXT_PUBLIC_BE_URL}/api/leaderboard/leaderboard-data`);
     return backendResponse;
 }
+
+
+// Referral reward payout
+export const ReferralRewardPayout = async (walletAddress: string, amount: number) => {
+    const backendResponse = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL}/api/payouts/referral`, {
+        walletAddress: walletAddress,
+        amount: amount
+    });
+    return backendResponse;
+}
+
 
 
 

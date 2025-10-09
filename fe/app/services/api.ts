@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const base = (process.env.NEXT_PUBLIC_BE_URL as string) || "http://localhost:8001";
 console.log("[API] base", base);
 
@@ -152,7 +154,30 @@ export const clearCache = async (walletAddress: string)=>{
 
 
 
+// Connect wallet for referral
 
-// Desposit funds : 
+export const ConnectWallet = async (walletAddress: string, referrer: string)=>{
+  console.log("[API] ConnectWallet ->", {walletAddress, referrer});
+  try{
+    const res = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL}/api/users/wallet-connect`, {
+      walletAddress: walletAddress,
+      referrer: referrer
+    });
+    return res;
+  } catch(error){
+    console.error("ConnectWallet error:", error);
+    throw error;
+  }
 
+}
+
+
+
+// get referred user
+export const getReferredUser = async (walletAddress: string)=>{
+  const res = await fetch(`${base}/api/users/get-referred-user`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ walletAddress }),
+  });
+  return res.json();
+}
 

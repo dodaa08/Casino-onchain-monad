@@ -4,6 +4,8 @@ import {Schema, model} from "mongoose";
 const userSchema = new Schema(
     {
       walletAddress: { type: String, required: true, unique: true }, // identity
+      referrer: { type: String, default: "" }, // wallet address of the referrer
+      isReferred: { type: Boolean, default: false }, // indicates if user joined via referral link
       DepositBalance: { type: Number, default: 0 }, // current on-platform balance (after deposits/cashouts)
       balance: { type: Number, default: 0 }, // current on-platform balance (after deposits/cashouts)
       totalEarned: { type: Number, default: 0 }, // lifetime earnings
