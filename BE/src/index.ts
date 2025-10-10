@@ -5,7 +5,7 @@ dotenv.config();
 import cors from "cors";
 
 
-const PORT = process.env.PORT;
+const PORT = parseInt(process.env.PORT || "8001", 10);
 const MONGO_URL = process.env.MONGO_DB_URL || "";
 
 // routes
@@ -59,7 +59,7 @@ const connectDB_and_cache = async () => {
     }   
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     connectDB_and_cache();
     console.log(`Server is running on port ${PORT}`);
 });
