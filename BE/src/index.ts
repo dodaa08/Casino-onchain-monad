@@ -9,7 +9,6 @@ const PORT = parseInt(process.env.PORT || "8001", 10);
 const MONGO_URL = process.env.MONGO_DB_URL || "";
 
 // routes
-import CacheRouter from "./routes/cache/cache.js";
 import PayoutsRouter from "./routes/payouts/route.js";
 import DepositFundsRouter from "./routes/depositFunds/route.js";
 import UserRouter from "./routes/users/route.js";
@@ -32,7 +31,6 @@ app.use(cors({
     allowedHeaders: ["Content-Type","Authorization"],
   }));
 
-app.use("/api/cache", CacheRouter);
 app.use("/api/payouts", PayoutsRouter);
 app.use("/api/depositFunds", DepositFundsRouter);
 app.use("/api/users", UserRouter);
