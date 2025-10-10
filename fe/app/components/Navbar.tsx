@@ -20,7 +20,7 @@ const Navbar = () => {
   const handleGenerateLink = () => {
     // Placeholder for generating referral link
     if (address) {
-      return `http://localhost:3000/referral?ref=${address}`;
+      return `https://casino-onchain-monad.vercel.app/referral?ref=${address}`;
     }
     return "";
   };
