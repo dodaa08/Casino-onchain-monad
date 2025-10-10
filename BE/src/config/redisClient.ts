@@ -1,12 +1,32 @@
 import { createClient } from "redis";
 
+const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+
 const client = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
+  url: redisUrl,
 });
 
-client.on("error", (err) => console.error("❌ Redis Client Error", err));
-client.on("connect", () => console.log("✅ Connected to Redis"));
+let isConnected = false;
 
-client.connect().catch(console.error);
+client.on("error", (err) => {
+  console.error("❌ Redis Client Error", err.message);
+  isConnected = false;
+});
+
+client.on("connect", () => {
+  console.log("✅ Connected to Redis");
+  isConnected = true;
+});
+
+// Try to connect but don't crash the app if it fails
+if (redisUrl) {
+  client.connect().catch((err) => {
+    console.error("⚠️  Redis connection failed, running without cache:", err.message);
+    isConnected = false;
+  });
+} else {
+  console.log("⚠️  Redis disabled - REDIS_URL not configured");
+}
 
 export default client;
+export { isConnected };
