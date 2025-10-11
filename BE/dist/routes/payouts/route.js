@@ -99,7 +99,7 @@ const referralPayout = async (req, res) => {
                 });
                 console.log(`Deducted ${referralReward} MON from user ${walletAddress} for referral reward`);
             }
-            res.status(200).json({ success: true, message: "Referral payout successful", referralReward });
+            res.status(200).json({ success: true, message: "Referral payout successful", referralReward, txHash: referrerPayoutTx.hash });
         }
         else {
             return res.status(400).json({ success: false, message: "Referral payout failed" });

@@ -39,7 +39,7 @@ const Leaderboard = ()=>{
 				</div>
 				<div className="bg-[#0b1206]/80 rounded-xl">
 					<ul className="divide-y divide-lime-900/40">
-						{entries.slice(0, 4).map((e, i) => (
+						{entries.map((e, i) => (
 							<li key={i} className="flex items-center justify-between px-4 py-3">
 								<div className="flex items-center gap-3">
 									<span className="text-gray-400 text-xs w-4">{e.rank}</span>

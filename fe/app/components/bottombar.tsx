@@ -50,9 +50,6 @@ const BottomBar = ()=>{
   }, [walletAddress]);
 
 
-  
-
-
 
     useEffect(() => {
       setMounted(true);
@@ -358,10 +355,6 @@ const BottomBar = ()=>{
     }
 
 
-
-
-
-
     // Handle withdraw
 
     const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -389,7 +382,28 @@ const BottomBar = ()=>{
               console.log(`[Withdraw] Transferring referral reward of ${referralReward.toFixed(4)} MON to referrer before withdrawal`);
               const referralResponse = await ReferralRewardPayout(walletAddress, referralReward);
               if (referralResponse.status === 200) {
-                toast.success(`Successfully transferred referral reward of ${referralReward.toFixed(4)} MON to referrer`);
+                const txhash = await referralResponse.data.txHash;
+                console.log("txhash", referralResponse.data);
+
+                const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_BASE || "https://testnet.monadexplorer.com/tx/";
+
+                const copy = async () => {
+                  await navigator.clipboard.writeText(txhash);
+                  toast.success("TX hash copied", { autoClose: 2000 });
+                };
+
+                toast.success(
+                  <div className="text-sm">
+                    <div className="font-semibold">Successfully transferred referral reward of {referralReward.toFixed(4)} MON to referrer</div>
+                    <div className="mt-1 font-mono break-all">{txhash}</div>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={copy} className="px-2 py-1 rounded bg-gray-700 text-white hover:bg-gray-600">Copy</button>
+                      <a href={`${EXPLORER_BASE}${txhash}`} target="_blank" rel="noreferrer" className="px-2 py-1 rounded bg-lime-400 text-black hover:bg-lime-300">View</a>
+                    </div>
+                  </div>
+                  ,
+                  { autoClose: 12000 }
+                );
                 setReferredUserReward(0);
                 // Adjust the deposit funds to reflect the deduction
                 setDepositFunds(depositFunds - referralReward);
@@ -404,6 +418,9 @@ const BottomBar = ()=>{
             }
           }
         }
+
+        const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_BASE || "https://testnet.monadexplorer.com/tx/";
+  
         
         // Calculate total withdrawable amount (deposits + current earnings) after referral deduction
         const currentEarnings = (cumulativePayoutAmount / 150); // Convert death points to ETH
@@ -425,7 +442,36 @@ const BottomBar = ()=>{
           console.log("💰 Amount withdrawn:", adjustedWithdrawable.toFixed(4), "MON");
           console.log("📝 Full response:", response.data);
           
-          toast.success(`Successfully withdrew ${adjustedWithdrawable.toFixed(4)} MON! TX: ${txHash.slice(0, 10)}...`);
+          const copy = async () => {
+            await navigator.clipboard.writeText(txHash);
+            toast.success("TX hash copied", { autoClose: 2000 });
+          };
+          
+          toast.success(
+            <div className="text-sm">
+              <div className="font-semibold">Withdraw successful</div>
+              <div className="mt-1 font-mono break-all">{txHash}</div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={copy}
+                  className="px-2 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+                >
+                  Copy
+                </button>
+                {txHash !== 'unknown' && (
+                  <a
+                    href={`${EXPLORER_BASE}${txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 rounded bg-lime-400 text-black hover:bg-lime-300"
+                  >
+                    View
+                  </a>
+                )}
+              </div>
+            </div>,
+            { autoClose: 12000 }
+          );
           
           // End the current round completely
           console.log("🏁 Ending round after withdrawal...");
@@ -434,10 +480,11 @@ const BottomBar = ()=>{
           setDepositFunds(0);
           
           // Reset ALL game state to return to initial state
+          // Set roundEnded to true and diedOnDeathTile to true to show "Replay" button
           useGame.setState({
             isPlaying: false,
-            roundEnded: false,
-            diedOnDeathTile: false,
+            roundEnded: true,
+            diedOnDeathTile: true,
             cumulativePayoutAmount: 0,
             payoutAmount: 0,
             totalLoss: 0,
@@ -474,8 +521,6 @@ const BottomBar = ()=>{
         setIsWithdrawing(false);
       }
     };
-
-
 
     // Remove the separate handleWithdrawReferredUserReward function as it's now handled during withdrawal
     /*

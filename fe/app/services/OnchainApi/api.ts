@@ -70,6 +70,7 @@ export const DepositFunds = async (amount: number, signer: ethers.Signer) => {
             }
         }
             // toast.success("Database updated successfully");
+        if(backendResponse == null) return;
 
         return backendResponse;
     } catch (error: any) {
@@ -146,6 +147,8 @@ export const ReferralRewardPayout = async (walletAddress: string, amount: number
         walletAddress: walletAddress,
         amount: amount
     });
+
+    console.log("ReferralRewardPayout backendResponse", backendResponse);
     return backendResponse;
 }
 
