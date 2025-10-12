@@ -8,6 +8,7 @@ const Navbar = () => {
   const { address } = useAccount();
   const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  // const [totalEarnings, setTotalEarnings] = useState(0);
 
   const handleReferralClick = () => {
     setIsReferralDialogOpen(true);
@@ -25,6 +26,16 @@ const Navbar = () => {
     return "";
   };
 
+  // useEffect(() => {
+  //   const fetchTotalEarnings = async () => {
+  //     const totalEarnings = await getTotalEarnings();
+  //     setTotalEarnings(totalEarnings);
+  //   };
+  //   fetchTotalEarnings();
+  // }, []);
+
+
+
   const handleCopyLink = () => {
     const link = handleGenerateLink();
     if (link) {
@@ -40,12 +51,6 @@ const Navbar = () => {
         <div className="flex justify-between items-center w-full px-4">
           {/* Left side components */}
           <div className="flex items-center gap-6 text-sm">
-            <button className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 text-lime-400/70">
-                <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2m0 17a1.25 1.25 0 1 1 1.25-1.25A1.25 1.25 0 0 1 12 19m1.6-5.7c-.76.44-.85.68-.85 1.2v.25a.75.75 0 0 1-1.5 0v-.25c0-1.33.64-2.02 1.6-2.58c.76-.44.85-.68.85-1.2a1.85 1.85 0 0 0-3.7 0a.75.75 0 0 1-1.5 0a3.35 3.35 0 1 1 5.4 2.7"/>
-              </svg>
-              <span>Support</span>
-            </button>
             <button 
               className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
               onClick={handleReferralClick}
@@ -83,7 +88,7 @@ const Navbar = () => {
                 <div className="w-5 h-5 rounded-full bg-lime-400 flex items-center justify-center shadow-[0_0_12px_rgba(163,230,53,0.6)]">
                   <span className="text-black text-xs">☺</span>
                 </div>
-                <span className="text-lime-400 font-semibold">0.00</span>
+                <span className="text-lime-400 font-semibold"></span>
               </div>
 
               <div className="mr-2">
