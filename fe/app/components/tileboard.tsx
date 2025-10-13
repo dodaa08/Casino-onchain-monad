@@ -10,7 +10,7 @@ import deathtile from "../../public/death-skull.svg";
 
 type BoardRow = {
 	multiplier: number
-	tiles: number // number of visible tiles on this board (0..7)
+	tiles: number
 }
 
 const TileBoard = ()=>{
@@ -21,10 +21,10 @@ const TileBoard = ()=>{
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
 	const [clickedTileIndex, setClickedTileIndex] = useState<Record<number, number>>({}); // row -> clicked tile index
 	const [deathTiles, setDeathTiles] = useState<Record<number, number>>({}); // row -> death tile index
-	// const [isSession, setIsSession] = useState(false);
 	const skipNextStartResetRef = useRef(false);
 	const fetchedLastSessionRef = useRef(false);
 	const [spinner, setSpinner] = useState(false);
+	const isProcessingClickRef = useRef(false);
 	
 
 	const LoadingSpinner = ({ message = "Loading..." }) => (
@@ -46,13 +46,13 @@ const TileBoard = ()=>{
 	const visualRows = useMemo(() => [...rows].reverse(), [rows]);
 
 	useEffect(() => {
-		// Generate 12–15 boards; each with 0–7 active tiles across 7 positions
+		// Generate 12–15 boards
 		const numRows = 12 + Math.floor(Math.random() * 4) // 12..15
 		const startMultiplier = 1.10
 		const growthPerRow = 1.18
 		const generated: BoardRow[] = []
 		for (let i = 0; i < numRows; i++) {
-			const tiles = 2 + Math.floor(Math.random() * 6) // 2..7 visible tiles
+			const tiles = 2 + Math.floor(Math.random() * 6)
 			const multiplier = startMultiplier * Math.pow(growthPerRow, i)
 			generated.push({ multiplier, tiles })
 		}
@@ -63,7 +63,7 @@ const TileBoard = ()=>{
 	}, []);
 
 	useEffect(() => {
-		// reset progression on start: start from the top (reverse side)
+		// reset progression on start
 		if (!isPlaying) return;
 		if (skipNextStartResetRef.current) { skipNextStartResetRef.current = false; return; }
 		setClickedByRow({})
@@ -72,18 +72,16 @@ const TileBoard = ()=>{
 		setActiveRow(Math.max(visualRows.length - 1, 0))
 	}, [isPlaying, visualRows.length]);
 
-	// If sessionId is empty on reload, fetch the last session for this wallet and set it
+	// If sessionId is empty on reload, fetch the last session for this wallet
 	useEffect(() => {
 		if (sessionId || !walletAddress || fetchedLastSessionRef.current) return;
 		let cancelled = false;
 		(async () => {
 			try {
-				console.log("[SESSION] fetch last ->", walletAddress);
 				const res = await getLastSessionId(walletAddress);
 				if (cancelled) return;
 				const last = res?.sessionId ?? res?.lastSessionId ?? null;
 				if (last) {
-					console.log("[SESSION] apply last ->", last);
 					setSessionId(last);
 					fetchedLastSessionRef.current = true;
 				}
@@ -94,22 +92,17 @@ const TileBoard = ()=>{
 		return () => { cancelled = true };
 	}, [sessionId, walletAddress, setSessionId]);
 
-	// Rehydrate from backend cache on mount/when session and rows are ready (no localStorage)
+	// Rehydrate from backend cache when session and rows are ready
 	useEffect(() => {
-		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
 		if (!sessionId || rows.length === 0) return;
 
-		// setSpinner(true);
 		let cancelled = false;
 		(async () => {
 			try {
-				const ts = Date.now();
-				console.log("[rehydrate] GET", `${process.env.NEXT_PUBLIC_BE_URL || "http://localhost:8001"}/api/cache/check-cache/${sessionId}?t=${ts}`);
 				const sessionState = await getSessionState(sessionId);
-				console.log("[rehydrate] res", sessionState);
 				if (cancelled) return;
 
-				// Restore playing flag from server first
+				// Restore playing flag from server
 				if (sessionState && sessionState.isPlaying) {
 					skipNextStartResetRef.current = true;
 					rehydrate({ isPlaying: true, roundEnded: false });
@@ -131,7 +124,7 @@ const TileBoard = ()=>{
 						rehydrate({ isPlaying: true, roundEnded: false, rowIndex: nextRow });
 					}	
 				}
-				setSpinner(false); // Hide spinner on successful rehydration
+				setSpinner(false);
 			} catch (e) {
 				console.error("[REHYDRATE] failed", e);
 				setSpinner(false);
@@ -151,25 +144,28 @@ const TileBoard = ()=>{
 
 	async function getDeathTileIndex(seed: string, rowIdx: number, tiles: number) {
 		const h = await sha256Hex(`${seed}-row${rowIdx}`)
-		// use a different slice and rotate by +1 to avoid index 0 too often
+				// diversify selection to avoid index 0 too often
 		const n = parseInt(h.slice(8, 16), 16)
 		return tiles > 0 ? ((n % tiles) + 1) % tiles : 0
 	}
 
 	const handleTileClick = async (visualIdx: number, clickedTileIdx: number)=>{
-		console.log("[SESSION] click ->", { sessionId, visualIdx, activeRow });
 		if(!walletAddress || !isPlaying) return;
 		if (visualIdx !== activeRow || clickedByRow[visualIdx]) return; // only current row once
+		
+		// Prevent multiple simultaneous clicks
+		if (isProcessingClickRef.current) return;
+		
+		isProcessingClickRef.current = true;
 
-		// Ensure session exists if user somehow skipped Play
+		// Ensure session exists if user skipped Play
 		if (!sessionId) {
 			const id = crypto.randomUUID();
-			console.log("[SESSION] fallback create on click ->", id);
 			setSessionId(id);
 		}
 		
 
-		// Map visual index back to actual index in original rows array
+		// Map visual index back to original rows index
 		const actualIdx = rows.length - 1 - visualIdx;
 		const tiles = rows[actualIdx]?.tiles ?? 0
 		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
@@ -177,33 +173,34 @@ const TileBoard = ()=>{
 		// setIsSession(true);
 		
 
-		const rowMult = rows[actualIdx]?.multiplier ?? 1;
-        await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
-		// await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
+		// Mark the tile as clicked and show the result
 		setClickedByRow(prev => ({ ...prev, [visualIdx]: true }))
 		setClickedTileIndex(prev => ({ ...prev, [visualIdx]: clickedTileIdx }))
 		
 		// Store the death tile index for this row
 		setDeathTiles(prev => ({ ...prev, [visualIdx]: deathIdx }))
 		
+		const rowMult = rows[actualIdx]?.multiplier ?? 1;
+        await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
+		// await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
+		
 		if(isDeath){
-			console.log(`[DEATH] row=${actualIdx} deathIdx=${deathIdx} clicked=${clickedTileIdx}`)
-			// setReplay(true);
-			
-			// toast.error("Death tile hit. Round ended.");
 			endRound();
-			// setIsSession(false);
+			isProcessingClickRef.current = false;
 			return;
 		}
-		// move downward (reverse direction) or finish at the bottom row
+		// move downward or finish at the bottom row
 		if (activeRow <= 0) {
 			endRound();
 			// setIsSession(false);
 			// setReplay(true);
-			
+			isProcessingClickRef.current = false;
 		} else {
-			setActiveRow(prev => prev - 1)
-		
+			// Move to next row after showing the result
+			setTimeout(() => {
+				setActiveRow(prev => prev - 1)
+				isProcessingClickRef.current = false;
+			}, 300);
 		}
 	}
 
@@ -220,7 +217,7 @@ const TileBoard = ()=>{
 			const generated: BoardRow[] = [];
 			
 			for (let i = 0; i < numRows; i++) {
-				const tiles = 2 + Math.floor(Math.random() * 6); // 2..7 visible tiles
+				const tiles = 2 + Math.floor(Math.random() * 6);
 				const multiplier = startMultiplier * Math.pow(growthPerRow, i);
 				generated.push({ multiplier, tiles });
 			}
@@ -282,16 +279,19 @@ const TileBoard = ()=>{
 					{formatMultiplier(row.multiplier)}
 				</div>
 
-				<div className={`flex items-center gap-4 rounded-2xl px-8 md:px-10 py-8 bg-[#0f172a]/90 border ${isPlaying && vIdx === activeRow ? 'border-emerald-500' : 'border-gray-800/60'}`}>
-					<div className="flex flex-row-reverse items-center gap-4 justify-end">
+				<div className={`flex items-center gap-3 rounded-2xl px-8 md:px-10 py-7 bg-[#0f172a]/90 border min-w-[700px] ${isPlaying && vIdx === activeRow ? 'border-emerald-500' : 'border-gray-800/60'}`}>
+					<div className="flex items-center gap-3 justify-center w-full">
 						{Array.from({ length: row.tiles }).map((_, idx) => {
-							const isDeathTile = deathTiles[vIdx] === idx;
+							const actualTileIdx = idx; // Tile index for game logic
+							const isVisible = true;
+							
+							const isDeathTile = deathTiles[vIdx] === actualTileIdx;
 							const isClicked = clickedByRow[vIdx];
 							const clickedTileIdx = clickedTileIndex[vIdx];
 							
 							// Determine tile color based on state
-							let tileColor = "bg-[#121a29] border-gray-700/60";
-							if (isClicked && clickedTileIdx === idx) {
+							let tileColor = "bg-gray-700 border-gray-700/60 hover:bg-white/10 cursor-pointer transition duration-300";
+							if (isClicked && clickedTileIdx === actualTileIdx) {
 								if (isDeathTile) {
 									tileColor = "bg-red-600 border-red-500"; // Red for death tile
 								} else {
@@ -304,8 +304,8 @@ const TileBoard = ()=>{
 									<button
 										type="button"
 										disabled={!isPlaying || vIdx !== activeRow || !!clickedByRow[vIdx]}
-										onClick={() => handleTileClick(vIdx, idx)}
-										className={`h-20 w-20 rounded-md transition-colors border ${tileColor} ${(!isPlaying || vIdx !== activeRow || clickedByRow[vIdx]) ? 'opacity-60 cursor-not-allowed hover:bg-[#121a29]' : 'hover:bg-gray-700'}`}
+										onClick={() => handleTileClick(vIdx, actualTileIdx)}
+										className={`h-20 w-20 rounded-md transition-colors border ${tileColor} ${(!isPlaying || vIdx !== activeRow || clickedByRow[vIdx]) ? 'opacity-60 cursor-not-allowed hover:bg-gray-700' : 'hover:bg-gray-500'}`}
 									/>
 									{/* Show death tile image on top of the death tile */}
 									{isDeathTile && isClicked && (

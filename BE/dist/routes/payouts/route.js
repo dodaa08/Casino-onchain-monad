@@ -4,6 +4,7 @@ import { Payout } from "../../Db/schema.js";
 import { PoolABI } from "../../contracts/abi.js";
 import { ethers } from "ethers";
 import { JsonRpcProvider, Wallet } from "ethers";
+import logger from "../../utils/logger.js";
 import dotenv from "dotenv";
 dotenv.config();
 const rawPk = (process.env.PRIVATE_KEY || "").trim();
@@ -34,10 +35,7 @@ const payouts = async (req, res) => {
         }
         const payoutTx = await poolContract.payout(walletAddress, ethers.parseEther(amount.toString()));
         await payoutTx.wait();
-        console.log(payoutTx);
-        console.log(poolAddress);
-        console.log(walletAddress);
-        console.log(amount);
+        logger.info("[Payout] tx=", payoutTx.hash, "to=", walletAddress, "amount=", amount);
         if (payoutTx) {
             await Payout.create({ user: user._id, amount, txHash: payoutTx.hash });
             await User.updateOne({ walletAddress }, {
@@ -58,7 +56,7 @@ const payouts = async (req, res) => {
         }
     }
     catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
@@ -74,30 +72,28 @@ const referralPayout = async (req, res) => {
             return res.status(400).json({ success: false, message: "User has no referrer" });
         }
         const referralReward = amount * 0.05; // 5% of the specified amount
-        console.log(`Referral reward payout of ${referralReward} MON to referrer: ${user.referrer}`);
+        logger.info("[Referral] reward=", referralReward, "to=", user.referrer);
         // Payout to referrer
         const referrerPayoutTx = await poolContract.payout(user.referrer, ethers.parseEther(referralReward.toString()));
         await referrerPayoutTx.wait();
-        console.log(`Referrer payout successful: ${referralReward} MON to ${user.referrer}`, referrerPayoutTx);
+        logger.info("[Referral] tx=", referrerPayoutTx.hash);
         if (referrerPayoutTx) {
             const referrerUser = await User.findOne({ walletAddress: user.referrer });
             if (referrerUser) {
                 await Payout.create({ user: referrerUser._id, amount: referralReward, txHash: referrerPayoutTx.hash });
-                // Increase referrer's balance as they receive the reward
                 await User.updateOne({ walletAddress: user.referrer }, {
                     $inc: {
                         DepositBalance: referralReward,
                         totalEarned: referralReward
                     }
                 });
-                console.log(`Updated referrer ${user.referrer} balance with ${referralReward} MON`);
-                // Decrease user's balance as the reward is deducted from their stake
+                logger.debug("[Referral] referrer balance updated");
                 await User.updateOne({ walletAddress: walletAddress }, {
                     $inc: {
                         DepositBalance: -referralReward
                     }
                 });
-                console.log(`Deducted ${referralReward} MON from user ${walletAddress} for referral reward`);
+                logger.debug("[Referral] user balance deducted");
             }
             res.status(200).json({ success: true, message: "Referral payout successful", referralReward, txHash: referrerPayoutTx.hash });
         }
@@ -106,7 +102,7 @@ const referralPayout = async (req, res) => {
         }
     }
     catch (error) {
-        console.error("Referral payout error:", error);
+        logger.error("Referral payout error:", error);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };

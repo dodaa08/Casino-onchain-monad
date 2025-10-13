@@ -32,10 +32,10 @@ const Leaderboard = ()=>{
 	return (
 		<>
 		
-		<div className=" flex justify-center min-h-max  select-none">
+	    <div className=" flex justify-center min-h-max  select-none overflow-y-auto h-[calc(100vh-8rem)]">
 			<div className="">
 				<div className="py-5">
-					<h3 className="text-lime-400 text-center tracking-widest text-xs font-bold py-5">LEADERBOARD</h3>
+					<h3 className="text-lime-400 text-center tracking-widest text-sm font-bold py-5">LEADERBOARD</h3>
 				</div>
 				<div className="bg-[#0b1206]/80 rounded-xl">
 					<ul className="divide-y divide-lime-900/40">

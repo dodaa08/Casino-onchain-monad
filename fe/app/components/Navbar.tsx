@@ -3,11 +3,16 @@
 import { useState } from "react";
 import Connectbutton from "./Connectbutton";
 import { useAccount } from "wagmi";
+import { getTotalEarnings } from "../services/api";
+import { useEffect } from "react";
+
 
 const Navbar = () => {
   const { address } = useAccount();
   const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [totalEarnings, setTotalEarnings] = useState(0);
+  const [isLoadingTotalEarnings, setIsLoadingTotalEarnings] = useState(false);
   // const [totalEarnings, setTotalEarnings] = useState(0);
 
   const handleReferralClick = () => {
@@ -25,6 +30,18 @@ const Navbar = () => {
     }
     return "";
   };
+
+  useEffect(() => {
+    const fetchTotalEarnings = async () => {
+      setIsLoadingTotalEarnings(true);
+      const totalEarnings = await getTotalEarnings(address || "");
+      setTotalEarnings(totalEarnings.data); 
+      setIsLoadingTotalEarnings(false);
+    };
+    fetchTotalEarnings();
+  }, [address]);
+
+
 
   // useEffect(() => {
   //   const fetchTotalEarnings = async () => {
@@ -50,21 +67,21 @@ const Navbar = () => {
       <div className="flex justify-center py-5 w-full border-b border-lime-900 bg-black/90">
         <div className="flex justify-between items-center w-full px-4">
           {/* Left side components */}
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-6 text-xl">
             <button 
-              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
               onClick={handleReferralClick}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 text-lime-400/70">
                 <path fill="currentColor" d="M12 12a5 5 0 1 0-5-5a5 5 0 0 0 5 5m4 1h-1.26a7.004 7.004 0 0 1-5.48 0H8a5 5 0 0 0-5 5v1a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-1a5 5 0 0 0-5-5"/>
               </svg>
-              <span>Referrals</span>
+              <span className="text-lg" >Referrals</span>
             </button>
           </div>  
 
           {/* Center components */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-lime-400/10 flex items-center justify-center shadow-[0_0_20px_rgba(163,230,53,0.35)]">
+            <div className="w-10 h-10 rounded-xl bg-lime-400/10 flex items-center justify-center shadow-[0_0_20px_rgba(163,230,53,0.35)]">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-6 h-6 text-lime-400">
                 <rect x="4" y="4" width="16" height="16" rx="3" ry="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
                 <circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/>
@@ -75,7 +92,7 @@ const Navbar = () => {
               </svg>
             </div>
             <div>
-              <h1 className="text-lime-400 tracking-widest text-lg font-bold" style={{ textShadow: "0 0 10px rgba(163, 230, 53, 0.7), 0 0 24px rgba(163, 230, 53, 0.45)" }}>
+              <h1 className="flex justify-center items-center text-lime-400 text-center tracking-widest text-2xl font-serif" style={{ textShadow: "0 0 10px rgba(163, 230, 53, 0.7), 0 0 24px rgba(163, 230, 53, 0.45)" }}>
                 Void.fun
               </h1>
             </div>
@@ -85,10 +102,33 @@ const Navbar = () => {
           <div className="flex items-center">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-sm">
+
+               <div className="flex flex-row gap-2">
+
                 <div className="w-5 h-5 rounded-full bg-lime-400 flex items-center justify-center shadow-[0_0_12px_rgba(163,230,53,0.6)]">
                   <span className="text-black text-xs">☺</span>
+
                 </div>
-                <span className="text-lime-400 font-semibold"></span>
+
+
+                {
+                    address && !isLoadingTotalEarnings && (
+                      <>
+                    {
+                      isLoadingTotalEarnings ? (
+                        <span className="text-lime-400 font-semibold">...</span>
+                      ) : (
+                        <span className="text-lime-400 font-semibold text-xs flex items-center">{
+                          totalEarnings > 0 ? totalEarnings.toFixed(4) : "0.0000"
+                        }</span>
+                      ) 
+                    }
+                   
+                    </>
+                  ) 
+                }
+                </div>
+                
               </div>
 
               <div className="mr-2">

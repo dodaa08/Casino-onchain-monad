@@ -1,7 +1,6 @@
 import axios from "axios";
 
 const base = (process.env.NEXT_PUBLIC_BE_URL as string) || "http://localhost:8001";
-console.log("[API] base", base);
 
 
 type CacheTilePayload = {
@@ -33,7 +32,6 @@ type SessionPayload = {
 // Create Cache tile 
 
 export async function cacheTile(p: CacheTilePayload) {
-  console.log("[API] cache-tiles ->", p);
   const res = await fetch(`${base}/api/cache/cache-tiles`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
   });
@@ -44,7 +42,6 @@ export async function cacheTile(p: CacheTilePayload) {
     throw new Error(`cacheTile failed: ${res.status}`);
   }
   
-  console.log("[API] cache-tiles ok", data);
   return data;
 }
 
@@ -97,7 +94,6 @@ export async function getLastSessionId(walletAddress : string){
     method: "GET", headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error(`getLastSessionId failed: ${res.status}`);
-  console.log("[API] getLastSessionId ok", res.status);
   const data = await res.json();
   return data;
 }
@@ -107,23 +103,19 @@ export async function getLastSessionId(walletAddress : string){
 export const getSessionState = async (sessionId: string) => {
   const ts = Date.now();
   const url = `${base}/api/cache/check-cache/${sessionId}?t=${ts}`;
-  console.log("[rehydrate] GET", url);
   const res = await fetch(url, { method:"GET", headers:{ "Content-Type":"application/json" }, cache:"no-store" });
-  console.log("[rehydrate] res", res);
   return res.json();
 };
 
 
 // cache the incresing payouts 
 export const cachePayouts = async (p: { key: string; value: number; roundEnded: boolean, walletAddress: string })=>{
-  console.log("[API] cachePayouts ->", p);
   if(!p.walletAddress) throw new Error(`walletAddress is required`);
   const res = await fetch(`${base}/api/cache/cache-payout`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
   });
   if (!res.ok) throw new Error(`cachePayouts failed: ${res.status}`); 
   const data = await res.json();
-  console.log("[API] cachePayouts ok", res.status);
   return data;
 }
 
@@ -134,13 +126,11 @@ export const getCachedPayouts = async (walletAddress: string)=>{
     method: "GET", headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error(`getCachedPayouts failed: ${res.status}`);
-  console.log("[API] getCachedPayouts ok", res.status);
   return res.json();
 };
 
 // clear cache for replay
 export const clearCache = async (walletAddress: string)=>{
-  console.log("[API] clearCache ->", walletAddress);
   const res = await fetch(`${base}/api/cache/clear-cache`, {
     method: "POST", 
     headers: { "Content-Type": "application/json" }, 
@@ -148,7 +138,6 @@ export const clearCache = async (walletAddress: string)=>{
   });
   if (!res.ok) throw new Error(`clearCache failed: ${res.status}`); 
   const data = await res.json();
-  console.log("[API] clearCache ok", res.status);
   return data;
 };
 
@@ -157,7 +146,6 @@ export const clearCache = async (walletAddress: string)=>{
 // Connect wallet for referral
 
 export const ConnectWallet = async (walletAddress: string, referrer: string)=>{
-  console.log("[API] ConnectWallet ->", {walletAddress, referrer});
   try{
     const res = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL}/api/users/wallet-connect`, {
       walletAddress: walletAddress,
@@ -172,10 +160,19 @@ export const ConnectWallet = async (walletAddress: string, referrer: string)=>{
 }
 
 
-
 // get referred user
 export const getReferredUser = async (walletAddress: string)=>{
   const res = await fetch(`${base}/api/users/get-referred-user`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ walletAddress }),
+  });
+  return res.json();
+}
+
+
+
+// get Total Earnings
+export const getTotalEarnings = async (walletAddress: string)=>{
+  const res = await fetch(`${base}/api/leaderboard/get-total-earnings`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ walletAddress }),
   });
   return res.json();

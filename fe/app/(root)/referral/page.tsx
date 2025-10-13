@@ -15,29 +15,19 @@ const ReferralPageContent = () => {
   const { address, isConnected } = useAccount();
   const referrer = searchParams.get("ref") || "";
   const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (referrer) {
-      console.log("Referral address from URL:", referrer);
-      // Store referrer in local storage for use during login
       localStorage.setItem("referrer", referrer);
-    } else {
-      // Clear any existing referrer if no ref parameter is present
-      localStorage.removeItem("referrer");
     }
   }, [referrer]);
 
   useEffect(() => {
     if (isConnected && address) {
-      console.log("Wallet connected:", address);
-      // Prepare to send referral data to backend
       const storedReferrer = localStorage.getItem("referrer") || "";
       if (storedReferrer) {
-        console.log("Sending referral data to backend:", { walletAddress: address, referrer: storedReferrer });
         sendReferralData(address, storedReferrer);
       } else {
-        console.log("No referrer found, redirecting to home");
         setTimeout(() => {
           router.push('/');
         }, 1000);
@@ -49,81 +39,55 @@ const ReferralPageContent = () => {
     setIsLoading(true);
     try {
       const res = await ConnectWallet(walletAddress, referrer);
-      console.log("[REFERRAL] ConnectWallet ->", res);
       if (res.data.success) {
-        console.log("Referral data stored successfully, redirecting to home");
-        toast.success("Referral Successfull, Now 5% of your staked amount will be shared with your referrer");
+        toast.success("Referral successful! 5% of your staked amount will be shared with your referrer.", { autoClose: 4000 });
         setTimeout(() => {
           router.push('/');
         }, 4000);
       } else {
-        console.error("Failed to store referral data:", res.data.message);
-        // Still redirect to avoid blocking user
+        toast.error("Referral connection failed. Please try again.", { autoClose: 3000 });
         setTimeout(() => {
           router.push('/');
-        }, 1000);
+        }, 3000);
       }
     } catch (error) {
-      console.error("Error sending referral data:", error);
-      // Redirect even on error to avoid blocking user
+      console.error("Error connecting wallet with referral:", error);
+      toast.error("Referral connection error. Please try again.", { autoClose: 3000 });
       setTimeout(() => {
         router.push('/');
-      }, 1000);
+      }, 3000);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCopy = () => {
-    if (referrer) {
-      navigator.clipboard.writeText(referrer);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   const handleSkipReferral = () => {
-    console.log("Skipping referral, redirecting to home");
     localStorage.removeItem("referrer");
-    
-
     router.push('/');
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-white p-4">
-      <div className="bg-[#0b1206]/80 rounded-xl p-6 max-w-md w-full text-center">
-        <h1 className="text-2xl font-bold text-lime-400 mb-4">Welcome to Death Fun</h1>
-        {referrer ? (
-          <>
-            <p className="text-gray-300 mb-4">You've been referred by a friend! Join now to start playing.</p>
-            <div className="mb-6 bg-[#121a29] border border-gray-700/60 rounded-md p-3 inline-block max-w-full">
-              <p className="text-sm text-gray-400 mb-1">Referral Source:</p>
-              <p className="text-sm text-white truncate max-w-[250px] mx-auto">{referrer}</p>
-              <button
-                className="mt-2 px-3 py-1 bg-gray-700 text-white text-sm rounded-md hover:bg-gray-600 transition-colors"
-                onClick={handleCopy}
-              >
-                {copied ? "Copied!" : "Copy Referral Info"}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="text-gray-300 mb-6">Join now to start playing Death Fun!</p>
-        )}
-        <div className="flex flex-col gap-4 mt-6">
-          <div className="w-full flex gap-4 justify-center flex-col items-center">
-            {isLoading ? (
-              <p className="text-gray-300">Connecting wallet...</p>
-            ) : (
-              <Connectbutton />
-            )}
+    <div className="flex min-h-screen items-center justify-center bg-[#080c14] px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl bg-[#0f172a]/90 border border-gray-800/60 p-8 shadow-lg">
+        <h1 className="mb-6 text-center text-2xl font-bold text-gray-200">Welcome to Death Fun</h1>
+        <p className="mb-8 text-center text-gray-400">You&apos;ve been invited through a referral. Connect your wallet to join the game!</p>
+        
+        <div className="mb-6 flex justify-center">
+          <Connectbutton />
+        </div>
+
+        {isLoading && (
+          <div className="mb-6 flex justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-lime-400 border-t-transparent"></div>
           </div>
+        )}
+
+        <div className="mt-4 text-center">
           <button
-            className="px-4 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
             onClick={handleSkipReferral}
+            className="mt-2 text-sm text-gray-500 underline hover:text-gray-300"
           >
-            Skip Referral and Go to Home
+            Skip and go to homepage
           </button>
         </div>
       </div>

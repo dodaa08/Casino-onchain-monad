@@ -24,34 +24,11 @@ export const DepositFunds = async (amount: number, signer: ethers.Signer) => {
         });
         
         const receipt = await depositTx.wait();
-        console.log("depositTx", depositTx);
-        console.log("poolAddress", poolAddress);
-        console.log("amount", amount);
-
 
         // Get wallet address
         const walletAddress = await signer.getAddress();
         
-        console.log("Transaction receipt:", receipt);
-        console.log("Transaction hash from receipt:", receipt?.hash);
-        console.log("Transaction hash from depositTx:", depositTx.hash);
-        
         const txHash = receipt?.hash || depositTx.hash;
-        
-        console.log("Sending to backend:", {
-            walletAddress: walletAddress,
-            amount: amount,
-            txHash: txHash,
-            url: `${process.env.NEXT_PUBLIC_BE_URL}/api/depositFunds/dp`
-        });
-        
-        console.log("Data types:", {
-            walletAddressType: typeof walletAddress,
-            amountType: typeof amount,
-            txHashType: typeof txHash,
-            amountValue: amount,
-            txHashLength: txHash?.length
-        });
 
         if(txHash == null){
             throw new Error("Transaction hash is null");
@@ -69,7 +46,6 @@ export const DepositFunds = async (amount: number, signer: ethers.Signer) => {
                 throw new Error("Failed to deposit funds");
             }
         }
-            // toast.success("Database updated successfully");
         if(backendResponse == null) return;
 
         return backendResponse;
@@ -78,12 +54,7 @@ export const DepositFunds = async (amount: number, signer: ethers.Signer) => {
         
         // If it's an axios error, log the response details
         if (error.response) {
-            console.error("Backend error response:", {
-                status: error.response.status,
-                data: error.response.data,
-                headers: error.response.headers
-            });
-            console.error("Backend error message:", error.response.data);
+            console.error("Backend error:", error.response.status);
             throw new Error(`Backend error: ${error.response.data?.message || error.response.statusText}`);
         }
         
@@ -108,8 +79,6 @@ export const FetchDepositFunds = async (walletAddress: string) => {
 export const WithdrawFunds = async (amount: number, signer: ethers.Signer) => {
     const walletAddress = await signer.getAddress();
     try{
-        console.log("[WithdrawFunds] Sending request:", { walletAddress, amount });
-        
         const backendResponse = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL}/api/withdrawFunds/wd`, {
             walletAddress: walletAddress,
             amount: amount
@@ -124,9 +93,6 @@ export const WithdrawFunds = async (amount: number, signer: ethers.Signer) => {
     }
     catch(error: any){
         console.error("WithdrawFunds error:", error);
-        console.error("Error response data:", JSON.stringify(error.response?.data, null, 2));
-        console.error("Error status:", error.response?.status);
-        console.error("Error message:", error.response?.data?.message);
         throw error;
     }
 }
@@ -148,7 +114,6 @@ export const ReferralRewardPayout = async (walletAddress: string, amount: number
         amount: amount
     });
 
-    console.log("ReferralRewardPayout backendResponse", backendResponse);
     return backendResponse;
 }
 

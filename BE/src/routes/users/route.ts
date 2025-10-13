@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { User } from "../../Db/schema.js";
+import logger from "../../utils/logger.js";
 const UserRouter = Router();
 
 
@@ -72,11 +73,11 @@ const getAllUsersWithtotalEarned = async (req: any, res: any) => {
 const connectWallet = async (req: any, res: any) => {
   const { walletAddress, referrer } = req.body;
 
-  console.log("Wallet connection request received:", { walletAddress, referrer });
+  logger.debug("[Users] wallet-connect", { walletAddress, referrer: !!referrer });
 
   // Input validation
   if (!walletAddress) {
-    console.log("Validation failed - missing walletAddress");
+    logger.warn("[Users] wallet-connect missing walletAddress");
     return res.status(400).json({ 
       success: false, 
       message: "Missing required field: walletAddress" 
@@ -87,7 +88,7 @@ const connectWallet = async (req: any, res: any) => {
     // Find or create user
     let user = await User.findOne({ walletAddress });
     if (!user) {
-      console.log(`Creating new user for wallet: ${walletAddress}`);
+      logger.info("[Users] creating user", walletAddress);
       user = await User.create({
         walletAddress: walletAddress,
         DepositBalance: 0,
@@ -101,7 +102,7 @@ const connectWallet = async (req: any, res: any) => {
     } else {
       // If user exists, ensure referrer is not overwritten if already set
       if (!user.referrer && referrer) {
-        console.log(`Updating referrer for existing user: ${walletAddress}`);
+        logger.info("[Users] updating referrer", walletAddress);
         user = await User.findOneAndUpdate(
           { walletAddress },
           { referrer: referrer, isReferred: true },
@@ -116,7 +117,7 @@ const connectWallet = async (req: any, res: any) => {
       user: user
     });
   } catch (error: any) {
-    console.error("Wallet connection error:", error);
+    logger.error("Wallet connection error:", error);
     res.status(500).json({ 
       success: false, 
       message: "Internal server error",
@@ -130,10 +131,10 @@ const getReferredUser = async (req: any, res: any) => {
   const { walletAddress } = req.body;
   try {
     const referredUser = await User.findOne({ walletAddress: walletAddress });
-    console.log("getReferredUser res:", referredUser?.referrer);
+    logger.debug("[Users] get-referred-user", !!referredUser?.referrer);
     res.status(200).json({ success: true, referredUser: referredUser?.referrer });
   } catch (error) {
-    console.error("getReferredUser error:", error);
+    logger.error("getReferredUser error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
