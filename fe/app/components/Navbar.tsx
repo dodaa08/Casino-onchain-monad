@@ -105,12 +105,7 @@ const Navbar = () => {
 
                <div className="flex flex-row gap-2">
 
-                <div className="w-5 h-5 rounded-full bg-lime-400 flex items-center justify-center shadow-[0_0_12px_rgba(163,230,53,0.6)]">
-                  <span className="text-black text-xs">☺</span>
-
-                </div>
-
-
+                
                 {
                     address && !isLoadingTotalEarnings && (
                       <>
@@ -118,9 +113,15 @@ const Navbar = () => {
                       isLoadingTotalEarnings ? (
                         <span className="text-lime-400 font-semibold">...</span>
                       ) : (
+                        <>
+                        <div className="w-5 h-5 rounded-full bg-lime-400 flex items-center justify-center shadow-[0_0_12px_rgba(163,230,53,0.6)]">
+                  <span className="text-black text-xs">☺</span>
+
+                </div>
                         <span className="text-lime-400 font-semibold text-xs flex items-center">{
                           totalEarnings > 0 ? totalEarnings.toFixed(4) : "0.0000"
                         }</span>
+                        </>
                       ) 
                     }
                    
@@ -171,12 +172,7 @@ const Navbar = () => {
               )}
             </div>
             <div className="flex justify-between items-center mb-4">
-              <button
-                className="px-4 py-2 bg-gray-700 text-white rounded-md opacity-50 cursor-not-allowed"
-                disabled
-              >
-                Claim Reward
-              </button>
+             
               <button
                 onClick={handleCloseDialog}
                 className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"

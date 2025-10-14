@@ -5,7 +5,7 @@ import WalletWraper from "./components/WalletWraper";
 import WalletEvents from "./components/WalletEvents";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import { ThemeProvider } from "next-themes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +32,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <ToastContainer 
           position="top-left"
           autoClose={3000}
@@ -47,6 +48,7 @@ export default function RootLayout({
           <WalletEvents />
           {children}
         </WalletWraper>
+        </ThemeProvider>
       </body>
     </html>
   );

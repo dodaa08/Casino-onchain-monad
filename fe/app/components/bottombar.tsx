@@ -49,8 +49,6 @@ const BottomBar = ()=>{
     }
   }, [walletAddress]);
 
-
-
     useEffect(() => {
       setMounted(true);
     }, []);
@@ -64,7 +62,6 @@ const BottomBar = ()=>{
       }
     }, [finalPayoutAmount]);
 
-    
   // live cache while playing
   useEffect(() => {
     if (isPlaying && !roundEnded && walletAddress) {
@@ -554,7 +551,7 @@ const BottomBar = ()=>{
         </div>
       )}
 
-      {depositFunds === 0 && isPlaying && (
+      {/* {depositFunds === 0 && isPlaying && (
          <div className="flex justify-center">
           <button 
             onClick={() => {
@@ -571,7 +568,7 @@ const BottomBar = ()=>{
             Exit Demo
           </button>
         </div>
-      )}
+      )} */}
 					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">

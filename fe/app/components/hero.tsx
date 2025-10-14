@@ -26,7 +26,7 @@ const Hero = ()=>{
                 </aside>
 
                 {/* Right: Leaderboard pinned to the far right with narrow width */}
-                <div className="ml-auto w-[300px] shrink-0 border-l border-gray-800 pl-4 pr-2">
+                <div className="ml-auto w-[400px] shrink-0 border-l border-gray-800 pl-4 pr-2">
                     <Leaderboard />
                 </div>
             </div>
