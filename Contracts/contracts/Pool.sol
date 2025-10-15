@@ -26,7 +26,7 @@ contract Pool {
         require(msg.value > 0, "Must send ETH");
     }
 
-    // User deposit function
+    // User deposit function like a vault
     function userDeposit() external payable {
         require(msg.value > 0, "Must send ETH");
         userBalances[msg.sender] += msg.value;

@@ -13,6 +13,7 @@ import DepositFundsRouter from "./routes/depositFunds/route.js";
 import UserRouter from "./routes/users/route.js";
 import WithdrawFundsRouter from "./routes/withdrawFunds/route.js";
 import LeaderboardRouter from "./routes/leaderboard/route.js";
+import SessionRouter from "./routes/sessions/route.js";
 const app = express();
 app.use(express.json());
 app.use(cors({
@@ -26,6 +27,7 @@ app.use("/api/depositFunds", DepositFundsRouter);
 app.use("/api/users", UserRouter);
 app.use("/api/withdrawFunds", WithdrawFundsRouter);
 app.use("/api/leaderboard", LeaderboardRouter);
+app.use("/api/sessions", SessionRouter);
 app.get("/", (req, res) => {
     res.send("Hello World");
 });

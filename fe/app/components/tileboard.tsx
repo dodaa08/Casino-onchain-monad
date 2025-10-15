@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
-import { getSessionState, getLastSessionId } from "@/app/services/api";
+import { getSessionState, getLastSessionId, RestoreSession } from "@/app/services/api";
 import deathtile from "../../public/death-skull.svg";
-
+import { getDeathTileIndex } from "@/app/utils/crypto";
 
 
 type BoardRow = {
@@ -15,7 +15,7 @@ type BoardRow = {
 
 const TileBoard = ()=>{
 	const [rows, setRows] = useState<BoardRow[]>([]);
-	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay, shuffleBoard, setShuffleBoard } = useGame();
+	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay, shuffleBoard, setShuffleBoard, serverSeed } = useGame();
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
@@ -46,21 +46,69 @@ const TileBoard = ()=>{
 	const visualRows = useMemo(() => [...rows].reverse(), [rows]);
 
 	useEffect(() => {
-		// Generate 12–15 boards
-		const numRows = 12 + Math.floor(Math.random() * 4) // 12..15
-		const startMultiplier = 1.10
-		const growthPerRow = 1.18
-		const generated: BoardRow[] = []
-		for (let i = 0; i < numRows; i++) {
-			const tiles = 2 + Math.floor(Math.random() * 6)
-			const multiplier = startMultiplier * Math.pow(growthPerRow, i)
-			generated.push({ multiplier, tiles })
-		}
-		setRows(generated)
-		setClickedByRow({})
-		setClickedTileIndex({})
-		setDeathTiles({})
-	}, []);
+		// Generate board from Redis session data if available, otherwise fallback to random
+		const generateBoardRows = async () => {
+			try {
+				if (sessionId) {
+					// Try to get session data from Redis
+					const sessionData = await RestoreSession(sessionId);
+					if (sessionData.success && sessionData.session?.rows) {
+						// Use board layout from Redis
+						const startMultiplier = 1.10;
+						const growthPerRow = 1.18;
+						
+						const generated: BoardRow[] = sessionData.session.rows.map((tiles: number, i: number) => ({
+							tiles,
+							multiplier: startMultiplier * Math.pow(growthPerRow, i)
+						}));
+						
+						setRows(generated);
+						setClickedByRow({});
+						setClickedTileIndex({});
+						setDeathTiles({});
+						return;
+					}
+				}
+				
+				// Fallback to random generation
+				const numRows = 12 + Math.floor(Math.random() * 4); // 12..15
+				const startMultiplier = 1.10;
+				const growthPerRow = 1.18;
+				const generated: BoardRow[] = [];
+				
+				for (let i = 0; i < numRows; i++) {
+					const tiles = 2 + Math.floor(Math.random() * 6); // 2..7 visible tiles
+					const multiplier = startMultiplier * Math.pow(growthPerRow, i);
+					generated.push({ multiplier, tiles });
+				}
+				
+				setRows(generated);
+				setClickedByRow({});
+				setClickedTileIndex({});
+				setDeathTiles({});
+			} catch (error) {
+				console.error('Failed to generate board:', error);
+				// Fallback to simple random generation
+				const numRows = 12 + Math.floor(Math.random() * 4);
+				const startMultiplier = 1.10;
+				const growthPerRow = 1.18;
+				const generated: BoardRow[] = [];
+				
+				for (let i = 0; i < numRows; i++) {
+					const tiles = 2 + Math.floor(Math.random() * 6);
+					const multiplier = startMultiplier * Math.pow(growthPerRow, i);
+					generated.push({ multiplier, tiles });
+				}
+				
+				setRows(generated);
+				setClickedByRow({});
+				setClickedTileIndex({});
+				setDeathTiles({});
+			}
+		};
+		
+		generateBoardRows();
+	}, [sessionId]);
 
 	useEffect(() => {
 		// reset progression on start
@@ -92,17 +140,22 @@ const TileBoard = ()=>{
 		return () => { cancelled = true };
 	}, [sessionId, walletAddress, setSessionId]);
 
-	// Rehydrate from backend cache when session and rows are ready
+	// Rehydrate from backend cache on mount/when session and rows are ready (no localStorage)
 	useEffect(() => {
+		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
 		if (!sessionId || rows.length === 0) return;
 
+		// setSpinner(true);
 		let cancelled = false;
 		(async () => {
 			try {
+				const ts = Date.now();
+				console.log("[rehydrate] GET", `${process.env.NEXT_PUBLIC_BE_URL || "http://localhost:8001"}/api/cache/check-cache/${sessionId}?t=${ts}`);
 				const sessionState = await getSessionState(sessionId);
+				console.log("[rehydrate] res", sessionState);
 				if (cancelled) return;
 
-				// Restore playing flag from server
+				// Restore playing flag from server first
 				if (sessionState && sessionState.isPlaying) {
 					skipNextStartResetRef.current = true;
 					rehydrate({ isPlaying: true, roundEnded: false });
@@ -124,7 +177,7 @@ const TileBoard = ()=>{
 						rehydrate({ isPlaying: true, roundEnded: false, rowIndex: nextRow });
 					}	
 				}
-				setSpinner(false);
+				setSpinner(false); // Hide spinner on successful rehydration
 			} catch (e) {
 				console.error("[REHYDRATE] failed", e);
 				setSpinner(false);
@@ -134,20 +187,7 @@ const TileBoard = ()=>{
 	}, [sessionId, rows.length, rehydrate]);
 
 
-	// Maintain game state using : 
-
-	async function sha256Hex(input: string) {
-		const data = new TextEncoder().encode(input)
-		const hash = await crypto.subtle.digest("SHA-256", data)
-		return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("")
-	}
-
-	async function getDeathTileIndex(seed: string, rowIdx: number, tiles: number) {
-		const h = await sha256Hex(`${seed}-row${rowIdx}`)
-				// diversify selection to avoid index 0 too often
-		const n = parseInt(h.slice(8, 16), 16)
-		return tiles > 0 ? ((n % tiles) + 1) % tiles : 0
-	}
+	// Death tile calculation now uses the deterministic function from crypto utils
 
 	const handleTileClick = async (visualIdx: number, clickedTileIdx: number)=>{
 		if(!walletAddress || !isPlaying) return;
@@ -168,7 +208,9 @@ const TileBoard = ()=>{
 		// Map visual index back to original rows index
 		const actualIdx = rows.length - 1 - visualIdx;
 		const tiles = rows[actualIdx]?.tiles ?? 0
-		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
+		
+		// Use sessionId for death tile calculation (server seed will be retrieved from Redis when needed)
+		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles);
 		const isDeath = clickedTileIdx === deathIdx
 		// setIsSession(true);
 		
@@ -206,11 +248,33 @@ const TileBoard = ()=>{
 
 
 
-	const regenerateBoard = () => {
+	const regenerateBoard = async () => {
 		setSpinner(true);
 		
-		setTimeout(() => {
-			// Generate new board
+		try {
+			// Generate new board using Redis session data if available
+			if (sessionId) {
+				const sessionData = await RestoreSession(sessionId);
+				if (sessionData.success && sessionData.session?.rows) {
+					const startMultiplier = 1.10;
+					const growthPerRow = 1.18;
+					
+					const generated: BoardRow[] = sessionData.session.rows.map((tiles: number, i: number) => ({
+						tiles,
+						multiplier: startMultiplier * Math.pow(growthPerRow, i)
+					}));
+					
+					setRows(generated);
+					setClickedByRow({});
+					setClickedTileIndex({});
+					setDeathTiles({});
+					setActiveRow(Math.max(generated.length - 1, 0));
+					setSpinner(false);
+					return;
+				}
+			}
+			
+			// Fallback to random generation
 			const numRows = 12 + Math.floor(Math.random() * 4);
 			const startMultiplier = 1.10;
 			const growthPerRow = 1.18;
@@ -227,8 +291,28 @@ const TileBoard = ()=>{
 			setClickedTileIndex({});
 			setDeathTiles({});
 			setActiveRow(Math.max(generated.length - 1, 0));
-			setSpinner(false);
-		}, 100); // Simulate loading time
+		} catch (error) {
+			console.error('Failed to regenerate board:', error);
+			// Fallback to simple random generation
+			const numRows = 12 + Math.floor(Math.random() * 4);
+			const startMultiplier = 1.10;
+			const growthPerRow = 1.18;
+			const generated: BoardRow[] = [];
+			
+			for (let i = 0; i < numRows; i++) {
+				const tiles = 2 + Math.floor(Math.random() * 6);
+				const multiplier = startMultiplier * Math.pow(growthPerRow, i);
+				generated.push({ multiplier, tiles });
+			}
+			
+			setRows(generated);
+			setClickedByRow({});
+			setClickedTileIndex({});
+			setDeathTiles({});
+			setActiveRow(Math.max(generated.length - 1, 0));
+		}
+		
+		setSpinner(false);
 	};
 
 

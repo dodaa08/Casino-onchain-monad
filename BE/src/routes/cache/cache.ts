@@ -254,8 +254,63 @@ const ClearCache = async (req: any, res: any) => {
   }
 };
 
+// Cache tile state for persistence
+const CacheTileState = async (req: any, res: any) => {
+  const { sessionId, clickedByRow, clickedTileIndex, deathTiles, activeRow } = req.body;
+  try {
+    if (!sessionId) {
+      return res.status(400).json({ success: false, message: "Session ID is required" });
+    }
+
+    // Store tile state in Redis
+    await redisClient.setEx(`game:${sessionId}:tileState`, 86400, JSON.stringify({
+      clickedByRow: clickedByRow || {},
+      clickedTileIndex: clickedTileIndex || {},
+      deathTiles: deathTiles || {},
+      activeRow: activeRow || 0,
+      lastUpdated: new Date().toISOString()
+    }));
+
+    return res.status(200).json({ success: true, message: "Tile state cached successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Get tile state from cache
+const GetTileState = async (req: any, res: any) => {
+  const { sessionId } = req.params;
+  try {
+    if (!sessionId) {
+      return res.status(400).json({ success: false, message: "Session ID is required" });
+    }
+
+    const tileStateStr = await redisClient.get(`game:${sessionId}:tileState`);
+    if (!tileStateStr) {
+      return res.status(200).json({ 
+        success: true, 
+        tileState: {
+          clickedByRow: {},
+          clickedTileIndex: {},
+          deathTiles: {},
+          activeRow: 0
+        }
+      });
+    }
+
+    const tileState = JSON.parse(tileStateStr);
+    return res.status(200).json({ success: true, tileState });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 CacheRouter.post("/cache-tiles", CacheTilesRowsClicked);
 CacheRouter.post("/cache-payout", CachetheIncreasingPayoutAmount);
 CacheRouter.post("/clear-cache", ClearCache);
+CacheRouter.post("/cache-tile-state", CacheTileState);
+CacheRouter.get("/get-tile-state/:sessionId", GetTileState);
 
 export default CacheRouter;

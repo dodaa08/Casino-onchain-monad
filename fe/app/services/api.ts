@@ -178,3 +178,36 @@ export const getTotalEarnings = async (walletAddress: string)=>{
   return res.json();
 }
 
+
+// sessions start
+export const StartSession = async (walletAddress: string, clientSeed: string, numRows: number)=>{
+  const res = await fetch(`${base}/api/sessions/start`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ walletAddress, clientSeed, numRows }),
+  });
+  return res.json();
+}
+
+// sessions reveal
+export const RevealSession = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/sessions/${sessionId}/reveal`, {
+    method: "POST", 
+    headers: { "Content-Type": "application/json" }
+  });
+  return res.json();
+};
+
+export const GetProof = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/sessions/${sessionId}/proof`, {
+    method: "GET", 
+    headers: { "Content-Type": "application/json" }
+  });
+  return res.json();
+};
+
+export const RestoreSession = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/sessions/${sessionId}/restore`, {
+    method: "GET", 
+    headers: { "Content-Type": "application/json" }
+  });
+  return res.json();
+};

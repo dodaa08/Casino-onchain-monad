@@ -11,7 +11,6 @@ const Hero = ()=>{
     const { start } = useGame();
     const { address: walletAddress } = useAccount();
 
-
     useEffect(() => {
         // Removed auto setSessionId on wallet connect to preserve session across reloads
     }, [walletAddress]);

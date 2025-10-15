@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { cacheTile } from "@/app/services/api";
+import { cacheTile, StartSession } from "@/app/services/api";
+import { generateClientSeed } from "@/app/utils/crypto";
 
 type GameState = {
   isPlaying: boolean;
@@ -11,7 +12,7 @@ type GameState = {
   setSessionId: (id: string) => void;
   Replay: boolean;
   shuffleBoard: boolean; // Flag to trigger board shuffling for any fresh start
-  start: () => void;
+  start: (walletAddress: string) => void;
   endRound: () => void;
   setReplay: (replay: boolean) => void;
   setShuffleBoard: (shuffle: boolean) => void;
@@ -25,7 +26,15 @@ type GameState = {
   setStake: (s: number)=> void;
   initialStake: number;
   totalLoss: number;
+  // Provably fair gaming properties
+  clientSeed: string;
+  serverSeed: string;
+  serverCommit: string;
+  rowsHash: string;
+  setSeeds: (clientSeed: string, serverSeed: string, serverCommit: string, rowsHash: string) => void;
 };
+
+
 
 export const useGame = create<GameState>((set, get) => ({
   isPlaying: false,
@@ -42,22 +51,63 @@ export const useGame = create<GameState>((set, get) => ({
   totalLoss: 0,
   Replay: false,
   shuffleBoard: false,
+  // Provably fair gaming properties
+  clientSeed: "",
+  serverSeed: "",
+  serverCommit: "",
+  rowsHash: "",
   setReplay: (replay) => set({ Replay: replay }),
   setShuffleBoard: (shuffle) => set({ shuffleBoard: shuffle }),
-
   setStake: (s) => set({ stake: s }),
   setSessionId: (id) => set({ sessionId: id }),
   setCumulativePayoutAmount: (amount) => set({ cumulativePayoutAmount: amount }),
-  start: () => set({ 
-    isPlaying: true, 
-    roundEnded: false, 
-    diedOnDeathTile: false, 
-    payoutAmount: 0, 
-    cumulativePayoutAmount: 0, 
-    cumulativeMultiplier: 1,
-    initialStake: get().stake,
-    totalLoss: 0
+  setSeeds: (clientSeed, serverSeed, serverCommit, rowsHash) => set({ 
+    clientSeed, 
+    serverSeed, 
+    serverCommit, 
+    rowsHash 
   }),
+  
+  start: async (walletAddress: string) => {
+    if (!walletAddress) return;
+    
+    try {
+      // Generate client seed
+      const clientSeed = generateClientSeed();
+      
+      // Create session via backend API (stores in Redis)
+      const session = await StartSession(walletAddress, clientSeed, 12);
+      
+      set({ 
+        sessionId: session.sessionId,
+        clientSeed: clientSeed,
+        serverSeed: "", // Will be retrieved from Redis when needed
+        serverCommit: session.serverCommit,
+        rowsHash: session.rowsHash,
+        isPlaying: true, 
+        roundEnded: false, 
+        diedOnDeathTile: false, 
+        payoutAmount: 0, 
+        cumulativePayoutAmount: 0, 
+        cumulativeMultiplier: 1,
+        initialStake: get().stake,
+        totalLoss: 0
+      });
+    } catch (error) {
+      console.error('Failed to start session:', error);
+      // Fallback to simple start without session
+      set({ 
+        isPlaying: true, 
+        roundEnded: false, 
+        diedOnDeathTile: false, 
+        payoutAmount: 0, 
+        cumulativePayoutAmount: 0, 
+        cumulativeMultiplier: 1,
+        initialStake: get().stake,
+        totalLoss: 0
+      });
+    }
+  },
   endRound: () => set({ isPlaying: false, roundEnded: true }),
 
   selectTile: async (rowIndex, tileIndex, walletAddress, isDeath, rowMultiplier, stakeOverride) => {

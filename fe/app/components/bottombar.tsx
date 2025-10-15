@@ -14,10 +14,12 @@ import { useGame } from "../store/useGame";
   import { getReferredUser } from "@/app/services/api";
   import { ReferralRewardPayout } from "../services/OnchainApi/api";
 
+
+
 const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
   const queryClient = useQueryClient();
-  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss } = useGame();
+  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss, sessionId } = useGame();
   const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const deathToastShownRef = useRef(false);
@@ -33,6 +35,11 @@ const BottomBar = ()=>{
   const [referredUser, setReferredUser] = useState("");
   const [isReferredUser, setIsReferredUser] = useState(false);
   const [referredUserReward, setReferredUserReward] = useState(0);
+
+  
+
+  
+
 
 
   useEffect(() => {
@@ -120,19 +127,29 @@ const BottomBar = ()=>{
     }, [mounted, isPlaying, roundEnded, cachedNum, cumulativePayoutAmount, finalPayoutAmount, setCumulativePayoutAmount, justStartedFresh, Replay, diedOnDeathTile]);
 
 
-    const handleStart = ()=>{
-      start();
-      deathToastShownRef.current = false; // Reset death toast flag for new game
-      setReplay(false);
-      toast.success(`Round started.`);
+    const handleStart = async ()=>{
+      try {
+        await start(walletAddress as string);
+        deathToastShownRef.current = false; // Reset death toast flag for new game
+        setReplay(false);
+        toast.success(`Round started.`);
+      } catch (error) {
+        console.error('Failed to start game:', error);
+        toast.error('Failed to start game');
+      }
     }
 
 
-    const handleReplay = ()=>{
-      start(); // ✅ Start the game
-      deathToastShownRef.current = false;
-      setReplay(true);
-      toast.success(`Round replayed.`);
+    const handleReplay = async ()=>{
+      try {
+        await start(walletAddress as string); // ✅ Start the game
+        deathToastShownRef.current = false;
+        setReplay(true);
+        toast.success(`Round replayed.`);
+      } catch (error) {
+        console.error('Failed to replay game:', error);
+        toast.error('Failed to replay game');
+      }
     }
 
 
@@ -153,7 +170,7 @@ const BottomBar = ()=>{
           });
         }
         
-        start(); // This already resets cumulativePayoutAmount and other game state
+        await start(walletAddress as string); // This already resets cumulativePayoutAmount and other game state
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -167,7 +184,7 @@ const BottomBar = ()=>{
         setJustStartedFresh(true); // Set this FIRST
         setFinalPayoutAmount(0);
         deathToastShownRef.current = false;
-        start();
+        await start(walletAddress as string);
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -296,6 +313,8 @@ const BottomBar = ()=>{
         <span className="ml-2 text-lime-400">Loading...</span>
       </div>
     );
+
+
 
 
     const handleDialogOpen = () => {
@@ -468,6 +487,25 @@ const BottomBar = ()=>{
          <div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 pt-10 pb-6  shadow-gray-900 shadow-inner">
           
         <div className="flex flex-col justify-between items-center gap-4">
+    {/* Session ID Display */}
+    {sessionId && roundEnded && (
+      <div className="w-full flex justify-center mb-2">
+        <div className="flex items-center gap-2 bg-[#121a29] border border-gray-700 rounded-lg px-3 py-2">
+          <span className="text-gray-400 text-xs">Session:</span>
+          <span className="text-lime-400 font-mono text-xs">{sessionId.slice(0, 8)}...</span>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(sessionId);
+              toast.success("Session ID copied!", { autoClose: 2000 });
+            }}
+            className="px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600 transition-colors"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+    )}
+
     {/* Left */}
     <div>
       {!mounted || isLoadingBalance || isMonitoringDeposit ? (
@@ -551,6 +589,7 @@ const BottomBar = ()=>{
         </div>
       )}
 
+
       {/* {depositFunds === 0 && isPlaying && (
          <div className="flex justify-center">
           <button 
@@ -572,10 +611,10 @@ const BottomBar = ()=>{
 					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">
-
-        
-    
-    </div>
+        <span className="text-lime-400 text-xl py-2">
+          {diedOnDeathTile ? "Final Earnings: 0.0000 MON" : `Final Earnings: ${finalPayoutAmountMON} MON`}
+        </span>
+      </div>
     ) : null}
   </div>
   

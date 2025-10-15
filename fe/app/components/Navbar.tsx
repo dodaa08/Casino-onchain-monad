@@ -5,10 +5,12 @@ import Connectbutton from "./Connectbutton";
 import { useAccount } from "wagmi";
 import { getTotalEarnings } from "../services/api";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 
 const Navbar = () => {
   const { address } = useAccount();
+  const router = useRouter();
   const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [totalEarnings, setTotalEarnings] = useState(0);
@@ -62,6 +64,10 @@ const Navbar = () => {
     }
   };
 
+  const handleVerifyClick = () => {
+    router.push('/verify');
+  };
+
   return (
     <>
       <div className="flex justify-center py-5 w-full border-b border-lime-900 bg-black/90">
@@ -76,6 +82,16 @@ const Navbar = () => {
                 <path fill="currentColor" d="M12 12a5 5 0 1 0-5-5a5 5 0 0 0 5 5m4 1h-1.26a7.004 7.004 0 0 1-5.48 0H8a5 5 0 0 0-5 5v1a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-1a5 5 0 0 0-5-5"/>
               </svg>
               <span className="text-lg" >Referrals</span>
+            </button>
+            
+            <button 
+              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
+              onClick={handleVerifyClick}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 text-lime-400/70">
+                <path fill="currentColor" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span className="text-lg">Verify</span>
             </button>
           </div>  
 

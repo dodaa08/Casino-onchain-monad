@@ -1,4 +1,5 @@
 type LogLevel = "silent" | "error" | "warn" | "info" | "debug";
+export declare function hmacSha256Hex(key: string, msg: string): string;
 declare const logger: {
     setLevel(level: LogLevel): void;
     debug: (...args: unknown[]) => void;

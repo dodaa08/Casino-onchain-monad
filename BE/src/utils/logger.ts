@@ -1,5 +1,6 @@
 // Lightweight leveled logger with env-controlled verbosity
 // Levels: silent < error < warn < info < debug
+import crypto from "crypto";
 
 type LogLevel = "silent" | "error" | "warn" | "info" | "debug";
 
@@ -10,6 +11,10 @@ const LEVELS: Record<LogLevel, number> = {
   info: 3,
   debug: 4,
 };
+
+export function hmacSha256Hex(key: string, msg: string): string {
+  return crypto.createHmac("sha256", key).update(msg, "utf8").digest("hex");
+}
 
 function getCurrentLevel(): LogLevel {
   const envLevel = (process.env.LOG_LEVEL || "").toLowerCase() as LogLevel;
@@ -42,9 +47,6 @@ const logger = {
 };
 
 export default logger;
-
-
-
 
 
 
