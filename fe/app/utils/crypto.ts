@@ -48,7 +48,7 @@ export function generateClientSeed(): string {
  * Generate a server seed using HMAC with master secret and session ID
  * Note: This is for demonstration - in production, server seed should be generated server-side
  */
-export async function generateServerSeed(sessionId: string, masterSecret: string = "demo-master-secret"): Promise<string> {
+export async function generateServerSeed(sessionId: string, masterSecret: string = "cd3e2b5f6a2f49b9b7d7b0d6d9f1c3e4a8c9f0a1b2c3d4e5f6a7b8c9d0e1f2a3"): Promise<string> {
   return await hmacSha256Hex(masterSecret, sessionId);
 }
 
@@ -78,8 +78,8 @@ export async function generateBoard(serverSeed: string, numRows: number = 12): P
  */
 export async function getDeathTileIndex(serverSeed: string, rowIdx: number, tiles: number): Promise<number> {
   const hash = await sha256Hex(`${serverSeed}-row${rowIdx}`);
-  const n = parseInt(hash.slice(8, 16), 16);
-  return tiles > 0 ? ((n % tiles) + 1) % tiles : 0;
+  const numericHash = parseInt(hash.slice(0, 8), 16);
+  return numericHash % tiles;
 }
 
 /**

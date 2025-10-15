@@ -396,7 +396,7 @@ const Verification = () => {
         </div>
       </div>
     </div>
-  );
+  );    
 };
 
 export default Verification;

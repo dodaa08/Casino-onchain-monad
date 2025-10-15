@@ -20,8 +20,9 @@ const Hero = ()=>{
         <div className="flex w-full items-stretch overflow-x-hidden">
             <div className="flex flex-row w-full gap-0">
                 {/* Left: Scrollable Tileboard sidebar touching leaderboard border */}
-                <aside className="flex-1 min-w-[720px] h-[calc(100vh-8rem)] overflow-y-auto pr-4">
+                <aside className="flex-1 min-w-[720px] h-[calc(100vh-8rem)] overflow-y-auto ">
                     <Tileboard />
+                    <Bottombar />
                 </aside>
 
                 {/* Right: Leaderboard pinned to the far right with narrow width */}
@@ -31,10 +32,6 @@ const Hero = ()=>{
             </div>
         </div>
 
-        {/* Sticky bottom bar overlaying at the bottom, independent from sidebar scroll */}
-        <div className="sticky bottom-0 left-0 right-0 z-20">
-            <Bottombar />
-        </div>
         </>
     )
 }

@@ -73,7 +73,7 @@ const Navbar = () => {
       <div className="flex justify-center py-5 w-full border-b border-lime-900 bg-black/90">
         <div className="flex justify-between items-center w-full px-4">
           {/* Left side components */}
-          <div className="flex items-center gap-6 text-xl">
+          <div className="flex items-center gap-6 text-xl ml-3">
             <button 
               className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
               onClick={handleReferralClick}
@@ -84,7 +84,7 @@ const Navbar = () => {
               <span className="text-lg" >Referrals</span>
             </button>
             
-            <button 
+            {/* <button 
               className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
               onClick={handleVerifyClick}
             >
@@ -92,7 +92,7 @@ const Navbar = () => {
                 <path fill="currentColor" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <span className="text-lg">Verify</span>
-            </button>
+            </button> */}
           </div>  
 
           {/* Center components */}

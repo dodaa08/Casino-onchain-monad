@@ -7,12 +7,13 @@ type GameState = {
   roundEnded: boolean;
   diedOnDeathTile: boolean;
   sessionId: string;
+  isDemo: boolean;
   rowIndex: number;
   tileIndex: number;
   setSessionId: (id: string) => void;
   Replay: boolean;
   shuffleBoard: boolean; // Flag to trigger board shuffling for any fresh start
-  start: (walletAddress: string) => void;
+  start: (walletAddress: string, isDemo: boolean) => void;
   endRound: () => void;
   setReplay: (replay: boolean) => void;
   setShuffleBoard: (shuffle: boolean) => void;
@@ -41,6 +42,7 @@ export const useGame = create<GameState>((set, get) => ({
   roundEnded: false,
   diedOnDeathTile: false,
   sessionId: "",
+  isDemo: false,
   rowIndex: 0,
   tileIndex: 0,
   payoutAmount: 0,
@@ -68,35 +70,59 @@ export const useGame = create<GameState>((set, get) => ({
     rowsHash 
   }),
   
-  start: async (walletAddress: string) => {
-    if (!walletAddress) return;
+  start: async (walletAddress: string, isDemo: boolean) => {
+    if (!walletAddress) {
+      // Allow demo mode without wallet address
+      if (!isDemo) return;
+    }
     
-    try {
-      // Generate client seed
-      const clientSeed = generateClientSeed();
-      
-      // Create session via backend API (stores in Redis)
-      const session = await StartSession(walletAddress, clientSeed, 12);
-      
+    set({ isDemo }); // Set the demo status
+
+    if (!isDemo) {
+      try {
+        // Generate client seed
+        const clientSeed = generateClientSeed();
+        
+        // Create session via backend API (stores in Redis)
+        const session = await StartSession(walletAddress, clientSeed, 12);
+        
+        set({ 
+          sessionId: session.sessionId,
+          clientSeed: clientSeed,
+          serverSeed: "", // Will be retrieved from Redis when needed
+          serverCommit: session.serverCommit,
+          rowsHash: session.rowsHash,
+          isPlaying: true, 
+          roundEnded: false, 
+          diedOnDeathTile: false, 
+          payoutAmount: 0, 
+          cumulativePayoutAmount: 0, 
+          cumulativeMultiplier: 1,
+          initialStake: get().stake,
+          totalLoss: 0
+        });
+      } catch (error) {
+        console.error('Failed to start session:', error);
+        // Fallback to simple start without session but still not as a demo
+        set({ 
+          isPlaying: true, 
+          roundEnded: false, 
+          diedOnDeathTile: false, 
+          payoutAmount: 0, 
+          cumulativePayoutAmount: 0, 
+          cumulativeMultiplier: 1,
+          initialStake: get().stake,
+          totalLoss: 0
+        });
+      }
+    } else {
+      // Handle demo mode start
       set({ 
-        sessionId: session.sessionId,
-        clientSeed: clientSeed,
-        serverSeed: "", // Will be retrieved from Redis when needed
-        serverCommit: session.serverCommit,
-        rowsHash: session.rowsHash,
-        isPlaying: true, 
-        roundEnded: false, 
-        diedOnDeathTile: false, 
-        payoutAmount: 0, 
-        cumulativePayoutAmount: 0, 
-        cumulativeMultiplier: 1,
-        initialStake: get().stake,
-        totalLoss: 0
-      });
-    } catch (error) {
-      console.error('Failed to start session:', error);
-      // Fallback to simple start without session
-      set({ 
+        sessionId: "", // No session ID for demo
+        clientSeed: generateClientSeed(),
+        serverSeed: "",
+        serverCommit: "",
+        rowsHash: "",
         isPlaying: true, 
         roundEnded: false, 
         diedOnDeathTile: false, 

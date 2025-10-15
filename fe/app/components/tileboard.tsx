@@ -5,7 +5,7 @@ import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
 import { getSessionState, getLastSessionId, RestoreSession } from "@/app/services/api";
 import deathtile from "../../public/death-skull.svg";
-import { getDeathTileIndex } from "@/app/utils/crypto";
+import { getDeathTileIndex, generateServerSeed } from "@/app/utils/crypto";
 
 
 type BoardRow = {
@@ -15,7 +15,7 @@ type BoardRow = {
 
 const TileBoard = ()=>{
 	const [rows, setRows] = useState<BoardRow[]>([]);
-	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay, shuffleBoard, setShuffleBoard, serverSeed } = useGame();
+	const { isPlaying, selectTile, endRound, sessionId, rehydrate, setSessionId, Replay, setReplay, shuffleBoard, setShuffleBoard, serverSeed, initialStake, cumulativePayoutAmount, setCumulativePayoutAmount } = useGame();
 	const { address: walletAddress } = useAccount();
 	const [activeRow, setActiveRow] = useState(0);
 	const [clickedByRow, setClickedByRow] = useState<Record<number, boolean>>({});
@@ -25,16 +25,46 @@ const TileBoard = ()=>{
 	const fetchedLastSessionRef = useRef(false);
 	const [spinner, setSpinner] = useState(false);
 	const isProcessingClickRef = useRef(false);
-	
+	const tileboardRef = useRef<HTMLDivElement>(null);
 
-	const LoadingSpinner = ({ message = "Loading..." }) => (
-		<div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-		  <div className="flex flex-col items-center gap-4">
-			<div className="w-16 h-16 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
-			<p className="text-emerald-400 text-lg font-semibold">{message}</p>
-		  </div>
+
+
+	const LoadingSpinner = () => (
+		<div className="flex items-center justify-center h-full min-h-[500px]">
+		  <svg className="animate-spin h-10 w-10 text-lime-400" fill="none" viewBox="0 0 24 24">
+			<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+			<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+		  </svg>
+		  <span className="ml-4 text-lime-400 text-xl">Loading Board...</span>
 		</div>
 	  );
+	
+	// Auto-scroll to active row
+	const scrollToActiveRow = () => {
+		if (tileboardRef.current && isPlaying) {
+			const rowElements = tileboardRef.current.querySelectorAll('[data-row-index]');
+			const activeRowElement = Array.from(rowElements).find(el => 
+				parseInt(el.getAttribute('data-row-index') || '0') === activeRow
+			);
+			
+			if (activeRowElement) {
+				activeRowElement.scrollIntoView({
+					behavior: 'smooth',
+					block: 'center',
+					inline: 'nearest'
+				});
+			}
+		}
+	};
+
+	// const LoadingSpinner = ({ message = "Loading..." }) => (
+	// 	<div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+	// 	  <div className="flex flex-col items-center gap-4">
+	// 		<div className="w-16 h-16 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
+	// 		<p className="text-emerald-400 text-lg font-semibold">{message}</p>
+	// 	  </div>
+	// 	</div>
+	//   );
 
 
 	
@@ -142,10 +172,10 @@ const TileBoard = ()=>{
 
 	// Rehydrate from backend cache on mount/when session and rows are ready (no localStorage)
 	useEffect(() => {
-		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLen: rows.length });
+		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLength: rows.length });
 		if (!sessionId || rows.length === 0) return;
 
-		// setSpinner(true);
+		setSpinner(true);
 		let cancelled = false;
 		(async () => {
 			try {
@@ -209,8 +239,8 @@ const TileBoard = ()=>{
 		const actualIdx = rows.length - 1 - visualIdx;
 		const tiles = rows[actualIdx]?.tiles ?? 0
 		
-		// Use sessionId for death tile calculation (server seed will be retrieved from Redis when needed)
-		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles);
+		// Use serverSeed for death tile calculation
+		const deathIdx = await getDeathTileIndex(serverSeed || "local-seed", actualIdx, tiles);
 		const isDeath = clickedTileIdx === deathIdx
 		// setIsSession(true);
 		
@@ -223,14 +253,19 @@ const TileBoard = ()=>{
 		setDeathTiles(prev => ({ ...prev, [visualIdx]: deathIdx }))
 		
 		const rowMult = rows[actualIdx]?.multiplier ?? 1;
-        await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
-		// await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath);
 		
 		if(isDeath){
+			// End round immediately for death tile
 			endRound();
+			// Reset earnings immediately
+			setCumulativePayoutAmount(0);
+			// Cache the death tile asynchronously
+			selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
 			isProcessingClickRef.current = false;
 			return;
 		}
+		
+		await selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
 		// move downward or finish at the bottom row
 		if (activeRow <= 0) {
 			endRound();
@@ -346,19 +381,28 @@ const TileBoard = ()=>{
 		}
 	}, [shuffleBoard, setSessionId, setShuffleBoard]);
 
+	// Auto-scroll when active row changes
+	useEffect(() => {
+		if (isPlaying && activeRow >= 0) {
+			// Small delay to ensure DOM is updated
+			setTimeout(() => {
+				scrollToActiveRow();
+			}, 100);
+		}
+	}, [activeRow, isPlaying]);
 
 	return(
 		
 		<>
-
+		
 {
 		spinner ? (
-			<LoadingSpinner message="Loading Game State..." />
+			<LoadingSpinner />
 		) : (
-<div className="px-4 py-10 mb-40">
-	      <div className="flex flex-col gap-4">
+<div className="px-4 py-10 ">
+	      <div ref={tileboardRef} className="flex flex-col gap-4">
 		{visualRows.map((row, vIdx) => (
-			<div key={vIdx} className="flex items-center gap-4 justify-center">
+			<div key={vIdx} data-row-index={vIdx} className="flex items-center gap-4 justify-center">
 				<div className="text-gray-300 font-semibold tabular-nums select-none w-16 text-right">
 					{formatMultiplier(row.multiplier)}
 				</div>

@@ -2,24 +2,26 @@
 
 import { useAccount } from "wagmi";
 import { useGame } from "../store/useGame";
-  import { useState, useEffect, useRef } from "react";
-  import { cachePayouts, getCachedPayouts, clearCache } from "../services/api";
-  import { useQuery, useQueryClient } from "@tanstack/react-query";
-  import { toast } from "react-toastify";
-  import DepositDialog from "./DepositDialog";
-  import { FetchDepositFunds } from "../services/OnchainApi/api";
-  import { useBalance } from "wagmi";
-  import { WithdrawFunds } from "../services/OnchainApi/api";
-  import { useWalletClient } from "wagmi";
-  import { getReferredUser } from "@/app/services/api";
-  import { ReferralRewardPayout } from "../services/OnchainApi/api";
-
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { cachePayouts, getCachedPayouts, clearCache } from "../services/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import DepositDialog from "./DepositDialog";
+import { FetchDepositFunds } from "../services/OnchainApi/api";
+import { useBalance } from "wagmi";
+import { WithdrawFunds } from "../services/OnchainApi/api";
+import { useWalletClient } from "wagmi";
+import { getReferredUser } from "@/app/services/api";
+import { ReferralRewardPayout } from "../services/OnchainApi/api";
+import Link from "next/link";
 
 
 const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
   const queryClient = useQueryClient();
-  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss, sessionId } = useGame();
+  const router = useRouter();
+  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss, sessionId, cumulativeMultiplier, isDemo } = useGame();
   const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const deathToastShownRef = useRef(false);
@@ -35,10 +37,7 @@ const BottomBar = ()=>{
   const [referredUser, setReferredUser] = useState("");
   const [isReferredUser, setIsReferredUser] = useState(false);
   const [referredUserReward, setReferredUserReward] = useState(0);
-
-  
-
-  
+  const [wasFundedGame, setWasFundedGame] = useState(false);
 
 
 
@@ -85,9 +84,14 @@ const BottomBar = ()=>{
     if (roundEnded) {
       // Always set finalPayoutAmount to the current cumulativePayoutAmount when round ends
       setFinalPayoutAmount(cumulativePayoutAmount);
+      if (!isDemo) {
+        setWasFundedGame(true);
+      } else {
+        setWasFundedGame(false);
+      }
       // toast.success(`Round ended. You earned ${cumulativePayoutAmount.toFixed(2)}`);
     }
-    }, [roundEnded, cumulativePayoutAmount]);
+    }, [roundEnded, cumulativePayoutAmount, isDemo]);
     
     // cache final payout while playing
     useEffect(() => {
@@ -129,7 +133,7 @@ const BottomBar = ()=>{
 
     const handleStart = async ()=>{
       try {
-        await start(walletAddress as string);
+        await start(walletAddress as string, true);
         deathToastShownRef.current = false; // Reset death toast flag for new game
         setReplay(false);
         toast.success(`Round started.`);
@@ -142,7 +146,7 @@ const BottomBar = ()=>{
 
     const handleReplay = async ()=>{
       try {
-        await start(walletAddress as string); // ✅ Start the game
+        await start(walletAddress as string, true); // ✅ Start the game
         deathToastShownRef.current = false;
         setReplay(true);
         toast.success(`Round replayed.`);
@@ -170,7 +174,7 @@ const BottomBar = ()=>{
           });
         }
         
-        await start(walletAddress as string); // This already resets cumulativePayoutAmount and other game state
+        await start(walletAddress as string, false); // This already resets cumulativePayoutAmount and other game state
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -184,7 +188,7 @@ const BottomBar = ()=>{
         setJustStartedFresh(true); // Set this FIRST
         setFinalPayoutAmount(0);
         deathToastShownRef.current = false;
-        await start(walletAddress as string);
+        await start(walletAddress as string, false);
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -483,14 +487,14 @@ const BottomBar = ()=>{
 	
 	return (
       <>
-      <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 ">
-         <div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 pt-10 pb-6  shadow-gray-900 shadow-inner">
+      <div className="flex justify-center px-4 pb-4 ml-20 sticky bottom-0">
+         <div className="w-full max-w-xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 py-6 shadow-gray-900 shadow-inner">
           
-        <div className="flex flex-col justify-between items-center gap-4">
+        <div className="flex flex-col items-center gap-3">
     {/* Session ID Display */}
-    {sessionId && roundEnded && (
+    {sessionId && roundEnded && wasFundedGame && (
       <div className="w-full flex justify-center mb-2">
-        <div className="flex items-center gap-2 bg-[#121a29] border border-gray-700 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 bg-[#121a29] border border-gray-700 rounded-lg px-3 py-1">
           <span className="text-gray-400 text-xs">Session:</span>
           <span className="text-lime-400 font-mono text-xs">{sessionId.slice(0, 8)}...</span>
           <button 
@@ -514,16 +518,16 @@ const BottomBar = ()=>{
         <>
         {depositFunds > 0 ? (
           // User has deposited funds - show Start button and balance
-          <div className="flex flex-col gap-4 items-center">
-            <div className="flex justify-between items-center gap-4 w-full">
+          <div className="flex flex-col gap-3 items-center">
+            <div className="flex items-center gap-4 w-full">
               <button 
                 onClick={() => handleStartGame(diedOnDeathTile)} 
-                 className="min-w-[200px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg"
+                 className="min-w-[200px] h-12 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg uppercase px-6 py-3"
               >
                 {diedOnDeathTile ? "Replay" : "Start Game"}
               </button>
               
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center mt-2">
                 <span className="text-gray-400 text-sm">Deposited Balance</span>
                 <span className="text-lime-400 text-xl font-bold">{depositFunds.toFixed(4)} MON</span>
               </div>
@@ -532,27 +536,27 @@ const BottomBar = ()=>{
         ) : (
           // User hasn't deposited - show demo and deposit options
           <>
-          <div className="flex justify-between items-end gap-4">
-            <div className="flex flex-col gap-2">
-              <button 
-                onClick={diedOnDeathTile ? handleReplay : handleStart} 
-                className="min-w-[180px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
-              >
-                {diedOnDeathTile ? "Play Demo" : "Play Demo"}
-              </button>
-            </div>
+          <div className="flex justify-center items-end gap-4 mb-3">
+            <button 
+              onClick={diedOnDeathTile ? handleReplay : handleStart} 
+              className="min-w-[180px] h-12 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors uppercase px-6 py-3"
+            >
+              {diedOnDeathTile ? "Play Demo" : "Play Demo"}
+            </button>
 
-            <div className="flex flex-col gap-2">
-              <button 
-                onClick={() => handleDialogOpen()}
-                className="min-w-[180px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
-              >
-                Add Funds
-              </button>
-            </div>
+            <button 
+              onClick={() => handleDialogOpen()}
+              className="min-w-[180px] h-12 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors uppercase px-6 py-3"
+            >
+              Add Funds
+            </button>
           </div>
-          <div className="w-full flex justify-center mt-2">
-            <span className="text-lime-400 text-lg text-center">You need to add funds to play and earn</span>
+          <div className="w-full flex justify-center mt-1">
+            <Link href="/flow">
+              <span className="text-gray-400 underline cursor-pointer hover:text-gray-300 text-sm">
+                How it works?
+              </span>
+            </Link>
           </div>
           </>
         )}
@@ -574,17 +578,37 @@ const BottomBar = ()=>{
     {!mounted ? (
       <span className="text-lime-400 text-sm">Earnings: ...</span>
     ) : isPlaying || roundEnded ? (
-      <div className="flex flex-col gap-2">
-      <span className="text-lime-400 text-xl">Earnings: { (cumulativePayoutAmount / 150).toFixed(4) } MON</span>
+      <div className="flex flex-col gap-2 items-center">
+        {/* Multiplier and Earnings Display */}
+        <div className="flex items-center justify-center mb-2 gap-4">
+          <div className="text-white font-bold text-2xl">
+            {cumulativeMultiplier.toFixed(2)}x
+          </div>
+          <div className="text-lime-400 font-bold text-2xl">
+            ♦ {(cumulativePayoutAmount / 150).toFixed(4)} MON
+          </div>
+        </div>
 
       {depositFunds > 0 && cumulativePayoutAmount > 0 && (
         <div className="flex justify-center">
           <button 
             onClick={handleWithdraw}
-            disabled={isWithdrawing}
-            className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isWithdrawing || roundEnded || diedOnDeathTile}
+            className="bg-white text-black cursor-pointer hover:bg-gray-100 transition-colors font-bold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide"
           >
             {isWithdrawing ? "Withdrawing..." : "Withdraw"}
+          </button>
+        </div>
+      )}
+
+      {/* Verify button appears after round ends */}
+      {roundEnded && sessionId && wasFundedGame && (
+        <div className="flex justify-center mt-2">
+          <button 
+            onClick={() => router.push('/verify')}
+            className="min-w-[120px] h-10 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors uppercase px-4 py-2 text-sm"
+          >
+            Verify
           </button>
         </div>
       )}
@@ -611,7 +635,7 @@ const BottomBar = ()=>{
 					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">
-        <span className="text-lime-400 text-xl py-2">
+        <span className="flex justify-center text-lime-400 text-xl">
           {diedOnDeathTile ? "Final Earnings: 0.0000 MON" : `Final Earnings: ${finalPayoutAmountMON} MON`}
         </span>
       </div>
