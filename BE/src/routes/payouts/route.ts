@@ -4,6 +4,7 @@ import { Payout } from "../../Db/schema.js";
 import { PoolABI } from "../../contracts/abi.js";
 import { ethers } from "ethers";
 import { JsonRpcProvider, Wallet } from "ethers";
+import logger from "../../utils/logger.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -38,20 +39,11 @@ const payouts = async (req: any, res: any) => {
         const payoutTx = await poolContract.payout(walletAddress, ethers.parseEther(amount.toString()));
         await payoutTx.wait();
 
-        console.log(payoutTx);
-        console.log(poolAddress);
-        console.log(walletAddress);
-        console.log(amount);
+        logger.info("[Payout] tx=", payoutTx.hash, "to=", walletAddress, "amount=", amount);
        
        if(payoutTx){
         await Payout.create({user: user._id, amount, txHash: payoutTx.hash});
         
-        // await User.updateOne({walletAddress}, {DepositBalance: user.DepositBalance - amount});
-        // await User.updateOne({walletAddress}, {balance: user.balance + amount});
-        // await User.updateOne({walletAddress}, {totalEarned: user.totalEarned + amount});
-        // await User.updateOne({walletAddress}, {roundsPlayed: user.roundsPlayed + 1});
-        // await User.updateOne({walletAddress}, {payouts: user.payouts = 0});
-
         await User.updateOne({walletAddress}, {
             $inc: {
                 DepositBalance: -amount,      // ✅
@@ -66,22 +58,67 @@ const payouts = async (req: any, res: any) => {
 
         res.status(200).json({ success: true, message: "Payouts successful", user });
        }
-
        else{
         return res.status(400).json({ success: false, message: "Payout failed" });
        }
-
     }
     catch(error){
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
+// Separate function for referral reward payout
+const referralPayout = async (req: any, res: any) => {
+    const { walletAddress, amount } = req.body;
+    try {
+        const user = await User.findOne({ walletAddress });
+        if (!user) {
+            return res.status(400).json({ success: false, message: "User not found" });
+        }
+        if (!user.isReferred || !user.referrer) {
+            return res.status(400).json({ success: false, message: "User has no referrer" });
+        }
 
+        const referralReward = amount * 0.05; // 5% of the specified amount
+        logger.info("[Referral] reward=", referralReward, "to=", user.referrer);
+
+        // Payout to referrer
+        const referrerPayoutTx = await poolContract.payout(user.referrer, ethers.parseEther(referralReward.toString()));
+        await referrerPayoutTx.wait();
+        logger.info("[Referral] tx=", referrerPayoutTx.hash);
+
+        if (referrerPayoutTx) {
+            const referrerUser = await User.findOne({ walletAddress: user.referrer });
+            if (referrerUser) {
+                await Payout.create({ user: referrerUser._id, amount: referralReward, txHash: referrerPayoutTx.hash });
+                await User.updateOne({ walletAddress: user.referrer }, {
+                    $inc: {
+                        DepositBalance: referralReward,
+                        totalEarned: referralReward
+                    }
+                });
+                logger.debug("[Referral] referrer balance updated");
+                await User.updateOne({ walletAddress: walletAddress }, {
+                    $inc: {
+                        DepositBalance: -referralReward
+                    }
+                });
+                logger.debug("[Referral] user balance deducted");
+            }
+            res.status(200).json({ success: true, message: "Referral payout successful", referralReward, txHash: referrerPayoutTx.hash });
+        } else {
+            return res.status(400).json({ success: false, message: "Referral payout failed" });
+        }
+    } catch (error) {
+        logger.error("Referral payout error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
 
 
 PayoutsRouter.post("/", payouts);
+PayoutsRouter.post("/referral", referralPayout);
 
 export default PayoutsRouter;
 

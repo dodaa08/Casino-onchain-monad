@@ -46,7 +46,6 @@ const DepositDialog = ({ isOpen, onClose, onDepositSuccess }: DepositDialogProps
 
       setIsLoading(true);
 
-
       // Note: We can't check balance here without fetching it first
       // The wallet address doesn't contain balance information
       // Balance checking would need to be done separately if needed
@@ -56,9 +55,46 @@ const DepositDialog = ({ isOpen, onClose, onDepositSuccess }: DepositDialogProps
       const signer = await provider.getSigner();
       
       const depositAmount = parseFloat(amount);
-      await DepositFunds(depositAmount, signer);
+      const txhash = await DepositFunds(depositAmount, signer);
+      console.log("txhash", txhash);
       
-      toast.success(`Successfully deposited ${amount} ETH!`);
+
+      const EXPLORER_BASE ="https://testnet.monadexplorer.com/tx/";
+
+      const copy = async () => {
+        await navigator.clipboard.writeText(txhash?.data?.transactionHash);
+        toast.success("TX hash copied", { autoClose: 2000 });
+      };
+      toast.success(
+        <div className="text-sm">
+          <div className="font-semibold">
+            Deposit successful {amount} MON!
+          </div>
+          <div className="mt-1 font-mono break-all">{txhash?.data?.transactionHash}</div>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={copy}
+              className="px-2 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Copy
+            </button>
+            {txhash?.data?.transactionHash && (
+              <a
+                href={`${EXPLORER_BASE}${txhash?.data?.transactionHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-2 py-1 rounded bg-lime-400 text-black hover:bg-lime-300"
+              >
+                View
+              </a>
+            )}
+          </div>
+        </div>,
+        { autoClose: 12000 }
+      );
+      
+      
+      // toast.success(`Successfully deposited ${amount} ETH! ${txhash}`);
       setAmount("");
       onClose();
       

@@ -2,21 +2,26 @@
 
 import { useAccount } from "wagmi";
 import { useGame } from "../store/useGame";
-  import { useState, useEffect, useRef } from "react";
-  import { cachePayouts, getCachedPayouts, clearCache } from "../services/api";
-  import { useQuery, useQueryClient } from "@tanstack/react-query";
-  import { toast } from "react-toastify";
-  import DepositDialog from "./DepositDialog";
-  import { FetchDepositFunds } from "../services/OnchainApi/api";
-  import { useBalance } from "wagmi";
-  import { WithdrawFunds } from "../services/OnchainApi/api";
-  import { useWalletClient } from "wagmi";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { cachePayouts, getCachedPayouts, clearCache } from "../services/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import DepositDialog from "./DepositDialog";
+import { FetchDepositFunds } from "../services/OnchainApi/api";
+import { useBalance } from "wagmi";
+import { WithdrawFunds } from "../services/OnchainApi/api";
+import { useWalletClient } from "wagmi";
+import { getReferredUser } from "@/app/services/api";
+import { ReferralRewardPayout } from "../services/OnchainApi/api";
+import Link from "next/link";
 
 
 const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
   const queryClient = useQueryClient();
-  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss } = useGame();
+  const router = useRouter();
+  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss, sessionId, cumulativeMultiplier, isDemo } = useGame();
   const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const deathToastShownRef = useRef(false);
@@ -29,8 +34,26 @@ const BottomBar = ()=>{
   const [expectedBalance, setExpectedBalance] = useState<number | null>(null);
   const { data: balance } = useBalance({address: walletAddress});
   const { data: walletClient } = useWalletClient();
+  const [referredUser, setReferredUser] = useState("");
+  const [isReferredUser, setIsReferredUser] = useState(false);
+  const [referredUserReward, setReferredUserReward] = useState(0);
+  const [wasFundedGame, setWasFundedGame] = useState(false);
 
 
+
+  useEffect(() => {
+    if(walletAddress){
+      getReferredUser(walletAddress).then((res) => {
+        setReferredUser(res.referredUser);
+        if(res.referredUser){
+          setIsReferredUser(true);
+        }
+        else{
+          setIsReferredUser(false);
+        }
+      });
+    }
+  }, [walletAddress]);
 
     useEffect(() => {
       setMounted(true);
@@ -45,7 +68,6 @@ const BottomBar = ()=>{
       }
     }, [finalPayoutAmount]);
 
-    
   // live cache while playing
   useEffect(() => {
     if (isPlaying && !roundEnded && walletAddress) {
@@ -62,22 +84,23 @@ const BottomBar = ()=>{
     if (roundEnded) {
       // Always set finalPayoutAmount to the current cumulativePayoutAmount when round ends
       setFinalPayoutAmount(cumulativePayoutAmount);
+      if (!isDemo) {
+        setWasFundedGame(true);
+      } else {
+        setWasFundedGame(false);
+      }
       // toast.success(`Round ended. You earned ${cumulativePayoutAmount.toFixed(2)}`);
     }
-    }, [roundEnded, cumulativePayoutAmount]);
+    }, [roundEnded, cumulativePayoutAmount, isDemo]);
     
     // cache final payout while playing
     useEffect(() => {
     if (roundEnded && walletAddress) {
-      // Only show death toast once per round
       if (diedOnDeathTile && !deathToastShownRef.current) {
-        // Show total loss amount (stake + earnings lost)
         const totalLossETH = totalLoss.toFixed(4);
         toast.error(`Death tile hit! You lost everything: ${totalLossETH} MON (stake + earnings). Round ended.`);  
         deathToastShownRef.current = true;
-        // setReplay(true);
       }
-      // Use cumulativePayoutAmount for caching since it's the actual final amount (0 on death)
       cachePayouts({ key: walletAddress, value: cumulativePayoutAmount, roundEnded: true, walletAddress });
     }
     }, [roundEnded, cumulativePayoutAmount, walletAddress, diedOnDeathTile, totalLoss]);
@@ -98,52 +121,39 @@ const BottomBar = ()=>{
       if (mounted && cachedNum != null && Number.isFinite(cachedNum) && !justStartedFresh && !Replay) {
         if (isPlaying && !roundEnded && cumulativePayoutAmount === 0) {
           // Rehydrate during active play
-          console.log("[BottomBar] rehydrating earnings from cache:", cachedNum);
           setCumulativePayoutAmount(cachedNum);
         } else if (roundEnded && finalPayoutAmount === 0 && !diedOnDeathTile) {
           // Only rehydrate final payout if we didn't die on death tile
-          console.log("[BottomBar] rehydrating final payout from cache:", cachedNum);
           setFinalPayoutAmount(cachedNum);
           setCumulativePayoutAmount(cachedNum);
         }
-      } else if (justStartedFresh || Replay || diedOnDeathTile) {
-        console.log("[BottomBar] Skipping rehydration - fresh start, replay, or died on death tile");
       }
     }, [mounted, isPlaying, roundEnded, cachedNum, cumulativePayoutAmount, finalPayoutAmount, setCumulativePayoutAmount, justStartedFresh, Replay, diedOnDeathTile]);
 
-    // Debug logging
-    console.log("[BottomBar] state:", { 
-      isPlaying, 
-      roundEnded, 
-      diedOnDeathTile,
-      cumulativePayoutAmount, 
-      finalPayoutAmount, 
-      totalLoss,
-      cachedRaw, 
-      cachedNum,
-      isCachedLoading,
-      walletAddress,
-      depositFunds,
-      mounted,
-      isLoadingBalance,
-      isMonitoringDeposit
-    });
 
-
-    const handleStart = ()=>{
-      start();
-      deathToastShownRef.current = false; // Reset death toast flag for new game
-      setReplay(false);
-      toast.success(`Round started.`);
+    const handleStart = async ()=>{
+      try {
+        await start(walletAddress as string, true);
+        deathToastShownRef.current = false; // Reset death toast flag for new game
+        setReplay(false);
+        toast.success(`Round started.`);
+      } catch (error) {
+        console.error('Failed to start game:', error);
+        toast.error('Failed to start game');
+      }
     }
 
 
-    const handleReplay = ()=>{
-      // setReplay(true);
-      start(); // ✅ Start the game
-      deathToastShownRef.current = false;
-      setReplay(true);
-      toast.success(`Round replayed.`);
+    const handleReplay = async ()=>{
+      try {
+        await start(walletAddress as string, true); // ✅ Start the game
+        deathToastShownRef.current = false;
+        setReplay(true);
+        toast.success(`Round replayed.`);
+      } catch (error) {
+        console.error('Failed to replay game:', error);
+        toast.error('Failed to replay game');
+      }
     }
 
 
@@ -157,32 +167,28 @@ const BottomBar = ()=>{
         // Clear cache before starting any game (demo or replay)
         if (walletAddress) {
           await clearCache(walletAddress);
-          console.log("[BottomBar] Cache cleared for", isReplay ? "replay" : "start");
           
           // Invalidate React Query cache for this wallet
           queryClient.invalidateQueries({ 
             queryKey: ["cachedPayouts", walletAddress] 
           });
-          console.log("[BottomBar] React Query cache invalidated");
         }
         
-        // Start game AFTER setting justStartedFresh flag
-        start(); // This already resets cumulativePayoutAmount and other game state
+        await start(walletAddress as string, false); // This already resets cumulativePayoutAmount and other game state
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
         setTimeout(() => setJustStartedFresh(false), 1000);
         
-        const message = isReplay ? "Round replayed. Cache cleared." : "Round started.";
+        const message = isReplay ? "Round replayed." : "Round started.";
         toast.success(message);
         
       } catch (error) {
         console.error("Error clearing cache:", error);
-        // Still start the game even if cache clear fails
         setJustStartedFresh(true); // Set this FIRST
         setFinalPayoutAmount(0);
         deathToastShownRef.current = false;
-        start(); // This already handles the state reset
+        await start(walletAddress as string, false);
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -197,13 +203,10 @@ const BottomBar = ()=>{
     const fetchUserBalance = async () => {
       if(walletAddress){
         setIsLoadingBalance(true);
-        console.log("Fetching deposit balance for:", walletAddress);
         try {
           const res = await FetchDepositFunds(walletAddress);
-          console.log("Deposit balance response:", res.data);
           const newBalance = res.data.user.DepositBalance;
           setDepositFunds(newBalance);
-          console.log("Set deposit funds to:", newBalance);
           return newBalance;
         } catch (error) {
           console.error("Error fetching deposit balance:", error);
@@ -227,7 +230,6 @@ const BottomBar = ()=>{
     // Reset deposit funds to 0 ONLY when user dies (not when they win)
     useEffect(() => {
       if (diedOnDeathTile && roundEnded) {
-        console.log("[BottomBar] User died - setting deposit funds to 0");
         setDepositFunds(0);
       }
     }, [diedOnDeathTile, roundEnded])
@@ -238,18 +240,13 @@ const BottomBar = ()=>{
       let timeoutId: NodeJS.Timeout;
       
       if (isMonitoringDeposit && expectedBalance !== null && walletAddress) {
-        console.log("[BottomBar] Starting balance monitoring for expected:", expectedBalance);
-        
         const checkBalance = async () => {
           try {
             const response = await FetchDepositFunds(walletAddress);
             const currentBalance = response.data.user.DepositBalance;
             
-            console.log("[BottomBar] Backend balance check:", currentBalance, "expected:", expectedBalance);
-            
             if (currentBalance >= expectedBalance) {
               // Backend has processed the deposit!
-              console.log("[BottomBar] Backend processed deposit successfully!");
               setIsMonitoringDeposit(false);
               setExpectedBalance(null);
               
@@ -268,7 +265,6 @@ const BottomBar = ()=>{
         
         // Stop checking after 30 seconds (timeout)
         timeoutId = setTimeout(() => {
-          console.log("[BottomBar] Balance check timeout - refreshing anyway");
           setIsMonitoringDeposit(false);
           setExpectedBalance(null);
           fetchUserBalance();
@@ -285,20 +281,33 @@ const BottomBar = ()=>{
     // Function to start monitoring after deposit
     const startDepositMonitoring = (depositAmount: number) => {
       const newExpectedBalance = depositFunds + depositAmount;
-      console.log("[BottomBar] Starting deposit monitoring for amount:", depositAmount, "expected balance:", newExpectedBalance);
       
       // Optimistic UI update - immediately update frontend
       setDepositFunds(newExpectedBalance);
-      console.log("[BottomBar] Optimistic UI update - set deposit funds to:", newExpectedBalance);
       
       setExpectedBalance(newExpectedBalance);
       setIsMonitoringDeposit(true);
-      toast.info("Processing deposit on blockchain...");
+      // toast.info("Processing deposit on blockchain...");
+      try {
+        // If an error occurs during deposit initiation, it might be caught here
+        // However, the actual transaction rejection might be in DepositDialog
+        // toast.info("Processing deposit...");
+      } catch (error: any) {
+        console.error("[BottomBar] Error initiating deposit monitoring:", error);
+        if (error?.code === 4001 || error?.message?.includes("user denied") || error?.message?.includes("User rejected")) {
+          toast.error("Deposit transaction rejected. Please confirm the transaction in your wallet to proceed.");
+        } else {
+          toast.error("Error processing deposit. Please try again.");
+        }
+        // Reset optimistic update on error
+        setDepositFunds(depositFunds);
+        setExpectedBalance(null);
+        setIsMonitoringDeposit(false);
+      }
     };
 
 
 
-    // Spinner component
     const LoadingSpinner = () => (
       <div className="flex items-center justify-center">
         <svg className="animate-spin h-6 w-6 text-lime-400" fill="none" viewBox="0 0 24 24">
@@ -310,6 +319,8 @@ const BottomBar = ()=>{
     );
 
 
+
+
     const handleDialogOpen = () => {
       if(balance && parseFloat(balance.formatted) < depositFunds){
         toast.error("You don't have enough balance to deposit");
@@ -318,10 +329,6 @@ const BottomBar = ()=>{
         setIsDepositDialogOpen(true);
       }
     }
-
-
-
-
 
 
     // Handle withdraw
@@ -336,58 +343,126 @@ const BottomBar = ()=>{
 
       try {
         setIsWithdrawing(true);
+        // Check if user has a referrer and calculate referral reward
+        let referralReward = 0;
+        let adjustedWithdrawable = 0;
+        if (isReferredUser && referredUser) {
+          referralReward = depositFunds * 0.05;
+          toast.info(`5% of your deposit (${referralReward.toFixed(4)} MON) will be shared with your referrer.`);
+          // Update the reward state
+          setReferredUserReward(referredUserReward + referralReward);
+          // Transfer referral reward before user withdrawal
+          if (walletAddress) {
+            try {
+              const referralResponse = await ReferralRewardPayout(walletAddress, referralReward);
+              if (referralResponse.status === 200) {
+                const txhash = referralResponse.data.txHash;
+
+                const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_BASE || "https://testnet.monadexplorer.com/tx/";
+
+                const copy = async () => {
+                  await navigator.clipboard.writeText(txhash);
+                  toast.success("TX hash copied", { autoClose: 2000 });
+                };
+
+                toast.success(
+                  <div className="text-sm">
+                    <div className="font-semibold">Successfully transferred referral reward of {referralReward.toFixed(4)} MON to referrer</div>
+                    <div className="mt-1 font-mono break-all">{txhash}</div>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={copy} className="px-2 py-1 rounded bg-gray-700 text-white hover:bg-gray-600">Copy</button>
+                      <a href={`${EXPLORER_BASE}${txhash}`} target="_blank" rel="noreferrer" className="px-2 py-1 rounded bg-lime-400 text-black hover:bg-lime-300">View</a>
+                    </div>
+                  </div>
+                  ,
+                  { autoClose: 12000 }
+                );
+                setReferredUserReward(0);
+                // Adjust the deposit funds to reflect the deduction
+                setDepositFunds(depositFunds - referralReward);
+              } else {
+                toast.error("Failed to transfer referral reward to referrer, proceeding with full withdrawal");
+                referralReward = 0; // Reset to avoid deduction if transfer fails
+              }
+            } catch (error) {
+              console.error("Error transferring referral reward before withdrawal:", error);
+              toast.error("Failed to transfer referral reward to referrer, proceeding with full withdrawal");
+              referralReward = 0; // Reset to avoid deduction if transfer fails
+            }
+          }
+        }
+
+        const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_BASE || "https://testnet.monadexplorer.com/tx/";
+  
         
-        // Calculate total withdrawable amount (deposits + current earnings)
         const currentEarnings = (cumulativePayoutAmount / 150); // Convert death points to ETH
-        const totalWithdrawable = depositFunds + currentEarnings;
+        adjustedWithdrawable = (depositFunds - referralReward) + currentEarnings;
         
-        console.log("[Withdraw] Withdrawing:", totalWithdrawable, "ETH");
         toast.info("Processing withdrawal...");
 
-        // Convert wagmi client to ethers signer
         const { ethers } = await import("ethers");
         const provider = new ethers.BrowserProvider(walletClient);
         const signer = await provider.getSigner();
         
-        const response = await WithdrawFunds(totalWithdrawable, signer);
+        const response = await WithdrawFunds(adjustedWithdrawable, signer);
         
         if (response.status === 200) {
           const txHash = response.data.data?.transactionHash || 'unknown';
-          console.log("🎉 WITHDRAWAL SUCCESS! Transaction Hash:", txHash);
-          console.log("💰 Amount withdrawn:", totalWithdrawable.toFixed(4), "MON");
-          console.log("📝 Full response:", response.data);
+          toast.success(
+            <div className="text-sm">
+              <div className="font-semibold">Withdraw successful</div>
+              <div className="mt-1 font-mono break-all">{txHash}</div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => {
+                    const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_BASE || "https://testnet.monadexplorer.com/tx/";
+                    const copy = async () => {
+                      await navigator.clipboard.writeText(txHash);
+                      toast.success("TX hash copied", { autoClose: 2000 });
+                    };
+                    copy();
+                  }}
+                  className="px-2 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+                >
+                  Copy
+                </button>
+                {txHash !== 'unknown' && (
+                  <a
+                    href={`${EXPLORER_BASE}${txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 rounded bg-lime-400 text-black hover:bg-lime-300"
+                  >
+                    View
+                  </a>
+                )}
+              </div>
+            </div>,
+            { autoClose: 12000 }
+          );
           
-          toast.success(`Successfully withdrew ${totalWithdrawable.toFixed(4)} MON! TX: ${txHash.slice(0, 10)}...`);
-          
-          // End the current round completely
-          console.log("🏁 Ending round after withdrawal...");
           setCumulativePayoutAmount(0);
           setFinalPayoutAmount(0);
           setDepositFunds(0);
           
-          // Reset ALL game state to return to initial state
+          deathToastShownRef.current = true;
+          
           useGame.setState({
             isPlaying: false,
-            roundEnded: false,
-            diedOnDeathTile: false,
+            roundEnded: true,
+            diedOnDeathTile: true,
             cumulativePayoutAmount: 0,
             payoutAmount: 0,
             totalLoss: 0,
             Replay: false
           });
           
-          console.log("🔄 Game state completely reset after withdrawal");
-          
-          // Clear cache
           if (walletAddress) {
             await clearCache(walletAddress);
             queryClient.invalidateQueries({ queryKey: ["cachedPayouts", walletAddress] });
-            console.log("🧹 Cache cleared after withdrawal");
           }
           
-          // Refresh balance from backend
           await fetchUserBalance();
-          console.log("💾 Balance refreshed from backend");
         }
         
       } catch (error: any) {
@@ -395,7 +470,9 @@ const BottomBar = ()=>{
         const errorMessage = error.response?.data?.message || error.message || "Withdrawal failed";
         const maxWithdrawable = error.response?.data?.maxWithdrawable;
         
-        if (maxWithdrawable && maxWithdrawable > 0) {
+        if (error?.code === 4001 || errorMessage?.includes("user denied") || errorMessage?.includes("User rejected")) {
+          toast.error("Withdrawal transaction rejected. Please confirm the transaction in your wallet to proceed.");
+        } else if (maxWithdrawable && maxWithdrawable > 0) {
           toast.error(`${errorMessage}. You can withdraw up to ${maxWithdrawable.toFixed(4)} ETH currently.`);
         } else {
           toast.error(errorMessage);
@@ -406,13 +483,33 @@ const BottomBar = ()=>{
     };
 
     
+    
 	
 	return (
       <>
-      <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 ">
-         <div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 pt-10 pb-6  shadow-gray-900 shadow-inner">
+      <div className="flex justify-center px-4 pb-4 ml-20 sticky bottom-0">
+         <div className="w-full max-w-xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 py-6 shadow-gray-900 shadow-inner">
           
-        <div className="flex flex-col justify-between items-center gap-4">
+        <div className="flex flex-col items-center gap-3">
+    {/* Session ID Display */}
+    {sessionId && roundEnded && wasFundedGame && (
+      <div className="w-full flex justify-center mb-2">
+        <div className="flex items-center gap-2 bg-[#121a29] border border-gray-700 rounded-lg px-3 py-1">
+          <span className="text-gray-400 text-xs">Session:</span>
+          <span className="text-lime-400 font-mono text-xs">{sessionId.slice(0, 8)}...</span>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(sessionId);
+              toast.success("Session ID copied!", { autoClose: 2000 });
+            }}
+            className="px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600 transition-colors"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+    )}
+
     {/* Left */}
     <div>
       {!mounted || isLoadingBalance || isMonitoringDeposit ? (
@@ -421,16 +518,16 @@ const BottomBar = ()=>{
         <>
         {depositFunds > 0 ? (
           // User has deposited funds - show Start button and balance
-          <div className="flex flex-col gap-4 items-center">
-            <div className="flex justify-between items-center gap-4 w-full">
+          <div className="flex flex-col gap-3 items-center">
+            <div className="flex items-center gap-4 w-full">
               <button 
                 onClick={() => handleStartGame(diedOnDeathTile)} 
-                 className="min-w-[200px] h-12 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg"
+                 className="min-w-[200px] h-12 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors text-lg uppercase px-6 py-3"
               >
                 {diedOnDeathTile ? "Replay" : "Start Game"}
               </button>
               
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center mt-2">
                 <span className="text-gray-400 text-sm">Deposited Balance</span>
                 <span className="text-lime-400 text-xl font-bold">{depositFunds.toFixed(4)} MON</span>
               </div>
@@ -439,27 +536,27 @@ const BottomBar = ()=>{
         ) : (
           // User hasn't deposited - show demo and deposit options
           <>
-          <div className="flex justify-between items-end gap-4">
-            <div className="flex flex-col gap-2">
-              <button 
-                onClick={diedOnDeathTile ? handleReplay : handleStart} 
-                className="min-w-[180px] h-10 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
-              >
-                {diedOnDeathTile ? "play Demo" : "Play Demo"}
-              </button>
-            </div>
+          <div className="flex justify-center items-end gap-4 mb-3">
+            <button 
+              onClick={diedOnDeathTile ? handleReplay : handleStart} 
+              className="min-w-[180px] h-12 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors uppercase px-6 py-3"
+            >
+              {diedOnDeathTile ? "Play Demo" : "Play Demo"}
+            </button>
 
-            <div className="flex flex-col gap-2">
-              <button 
-                onClick={() => handleDialogOpen()}
-                className="min-w-[180px] h-10 cursor-pointer rounded-md bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors"
-              >
-                Add Funds
-              </button>
-            </div>
+            <button 
+              onClick={() => handleDialogOpen()}
+              className="min-w-[180px] h-12 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors uppercase px-6 py-3"
+            >
+              Add Funds
+            </button>
           </div>
-          <div className="w-full flex justify-center mt-2">
-            <span className="text-lime-400 text-lg text-center">You need to add funds to play and earn</span>
+          <div className="w-full flex justify-center mt-1">
+            <Link href="/flow">
+              <span className="text-gray-400 underline cursor-pointer hover:text-gray-300 text-sm">
+                How it works?
+              </span>
+            </Link>
           </div>
           </>
         )}
@@ -480,32 +577,71 @@ const BottomBar = ()=>{
     <div className="w-full flex justify-center">
     {!mounted ? (
       <span className="text-lime-400 text-sm">Earnings: ...</span>
-    ) : isPlaying ? (
-      <div className="flex flex-col gap-2">
-      <span className="text-lime-400 text-xl">Earnings: { (cumulativePayoutAmount / 150).toFixed(4) } MON</span>
+    ) : isPlaying || roundEnded ? (
+      <div className="flex flex-col gap-2 items-center">
+        {/* Multiplier and Earnings Display */}
+        <div className="flex items-center justify-center mb-2 gap-4">
+          <div className="text-white font-bold text-2xl">
+            {cumulativeMultiplier.toFixed(2)}x
+          </div>
+          <div className="text-lime-400 font-bold text-2xl">
+            ♦ {(cumulativePayoutAmount / 150).toFixed(4)} MON
+          </div>
+        </div>
 
-      {depositFunds > 0 && (
+      {depositFunds > 0 && cumulativePayoutAmount > 0 && (
         <div className="flex justify-center">
           <button 
             onClick={handleWithdraw}
-            disabled={isWithdrawing}
-            className="bg-lime-400 text-black cursor-pointer hover:bg-lime-300 transition-colors font-semibold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isWithdrawing || roundEnded || diedOnDeathTile}
+            className="bg-white text-black cursor-pointer hover:bg-gray-100 transition-colors font-bold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide"
           >
             {isWithdrawing ? "Withdrawing..." : "Withdraw"}
           </button>
         </div>
       )}
+
+      {/* Verify button appears after round ends */}
+      {roundEnded && sessionId && wasFundedGame && (
+        <div className="flex justify-center mt-2">
+          <button 
+            onClick={() => router.push('/verify')}
+            className="min-w-[120px] h-10 cursor-pointer rounded-lg bg-lime-400 text-black font-bold tracking-wide hover:bg-lime-300 transition-colors uppercase px-4 py-2 text-sm"
+          >
+            Verify
+          </button>
+        </div>
+      )}
+
+
+      {/* {depositFunds === 0 && isPlaying && (
+         <div className="flex justify-center">
+          <button 
+            onClick={() => {
+              useGame.setState({ 
+                isPlaying: false, 
+                roundEnded: true, 
+                diedOnDeathTile: true,
+                cumulativePayoutAmount: 0,
+                payoutAmount: 0
+              });
+            }}
+            className="bg-red-500 text-white cursor-pointer hover:bg-red-400 transition-colors font-semibold px-4 py-2 rounded-md"
+          >
+            Exit Demo
+          </button>
+        </div>
+      )} */}
 					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">
-
-      <span className="text-lime-400 text-xl py-2">
-        {diedOnDeathTile ? "Final Earnings: 0.0000 MON" : `Final Earnings: ${finalPayoutAmountMON} MON`}
-      </span>
-    
-    </div>
+        <span className="flex justify-center text-lime-400 text-xl">
+          {diedOnDeathTile ? "Final Earnings: 0.0000 MON" : `Final Earnings: ${finalPayoutAmountMON} MON`}
+        </span>
+      </div>
     ) : null}
   </div>
+  
   </div>
 			</div>
 		</div>

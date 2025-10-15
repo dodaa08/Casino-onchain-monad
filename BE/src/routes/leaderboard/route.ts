@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { User } from "../../Db/schema.js";
+import logger from "../../utils/logger.js";
 
 const LeaderboardRouter = Router();
 
@@ -27,9 +28,27 @@ LeaderboardRouter.get("/leaderboard-data", async (req, res) => {
         });
     }
     catch(error){
-        console.error("Leaderboard error:", error);
+        logger.error("Leaderboard error:", error);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 });
 
+
+const getTotalEarnings = async (req: any, res: any) => {
+    const { walletAddress } = req.body;
+    try{
+        const user = await User.findOne({ walletAddress });
+        if(!user){
+            return res.status(400).json({ success: false, message: "User not found" });
+        }
+        res.status(200).json({ success: true, data: user.totalEarned });
+    }
+    catch(error){
+        logger.error("Leaderboard error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+
+LeaderboardRouter.post("/get-total-earnings", getTotalEarnings);
 export default LeaderboardRouter;

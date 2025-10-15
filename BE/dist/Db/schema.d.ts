@@ -4,6 +4,8 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    referrer: string;
+    isReferred: boolean;
     DepositBalance: number;
     balance: number;
     totalEarned: number;
@@ -14,6 +16,8 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    referrer: string;
+    isReferred: boolean;
     DepositBalance: number;
     balance: number;
     totalEarned: number;
@@ -26,6 +30,8 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    referrer: string;
+    isReferred: boolean;
     DepositBalance: number;
     balance: number;
     totalEarned: number;
@@ -42,6 +48,8 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    referrer: string;
+    isReferred: boolean;
     DepositBalance: number;
     balance: number;
     totalEarned: number;
@@ -52,6 +60,8 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    referrer: string;
+    isReferred: boolean;
     DepositBalance: number;
     balance: number;
     totalEarned: number;
@@ -64,6 +74,8 @@ export declare const User: import("mongoose").Model<{
     updatedAt: NativeDate;
 } & {
     walletAddress: string;
+    referrer: string;
+    isReferred: boolean;
     DepositBalance: number;
     balance: number;
     totalEarned: number;

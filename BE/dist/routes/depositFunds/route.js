@@ -1,16 +1,14 @@
 import { Router } from "express";
 import { User } from "../../Db/schema.js";
 import { ethers } from "ethers";
-// import { PoolABI } from "../../contracts/abi.js";
-// import { Payout } from "../../Db/schema.js";
+import logger from "../../utils/logger.js";
 const poolAddress = (process.env.CONTRACT_ADDRESS || process.env.Contract_Address || "").trim();
 const provider = new ethers.JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "");
-// const poolContract = new ethers.Contract(poolAddress, PoolABI, provider) as any;   
 const DepositFundsRouter = Router();
 const depositFunds = async (req, res) => {
     const { walletAddress, amount, txHash, diedOnDeathTile } = req.body;
-    console.log("Deposit request received:", { walletAddress, amount, txHash });
-    console.log("Data types received:", {
+    logger.info("[Deposit] request", { walletAddress, amount, txHash });
+    logger.debug("[Deposit] types", {
         walletAddressType: typeof walletAddress,
         amountType: typeof amount,
         txHashType: typeof txHash,
@@ -20,7 +18,7 @@ const depositFunds = async (req, res) => {
     });
     // Input validation
     if (!walletAddress || !amount || !txHash) {
-        console.log("Validation failed - missing fields:", {
+        logger.warn("[Deposit] validation failed", {
             hasWalletAddress: !!walletAddress,
             hasAmount: !!amount,
             hasTxHash: !!txHash
@@ -40,7 +38,7 @@ const depositFunds = async (req, res) => {
         // Find or create user
         let user = await User.findOne({ walletAddress });
         if (!user) {
-            console.log(`Creating new user for wallet: ${walletAddress}`);
+            logger.info("[Deposit] creating user", walletAddress);
             user = await User.create({
                 walletAddress: walletAddress,
                 DepositBalance: 0,
@@ -51,33 +49,31 @@ const depositFunds = async (req, res) => {
             });
         }
         // Verify transaction exists and is valid
-        console.log(`Fetching transaction: ${txHash}`);
+        logger.debug("[Deposit] fetching tx", txHash);
         const tx = await provider.getTransaction(txHash);
         if (!tx) {
-            console.log("Transaction not found on blockchain");
+            logger.warn("[Deposit] tx not found");
             return res.status(400).json({ success: false, message: "Transaction not found" });
         }
-        console.log(`Transaction found, waiting for confirmation...`);
+        logger.debug("[Deposit] waiting for confirmation");
         // Wait for transaction to be mined
         const receipt = await provider.waitForTransaction(txHash);
         if (!receipt || receipt.status !== 1) {
-            console.log("Transaction failed or not confirmed", { receipt });
+            logger.warn("[Deposit] tx failed or unconfirmed");
             return res.status(400).json({
                 success: false,
                 message: "Transaction failed or not confirmed"
             });
         }
-        console.log(`Verifying contract address. Expected: ${poolAddress}, Got: ${tx.to}`);
+        logger.debug("[Deposit] verify contract address", { expected: poolAddress, to: tx.to });
         // Verify transaction is to the correct contract
         if (tx.to?.toLowerCase() !== poolAddress.toLowerCase()) {
-            console.log("Contract address mismatch");
+            logger.warn("[Deposit] contract mismatch");
             return res.status(400).json({
                 success: false,
                 message: `Transaction is not to the pool contract. Expected: ${poolAddress}, Got: ${tx.to}`
             });
         }
-        // Verify the transaction is a userDeposit call
-        // You could add more validation here to ensure it's the correct function call
         // Update user balance atomically
         const updatedUser = await User.findOneAndUpdate({ walletAddress }, { $inc: { DepositBalance: amount } }, { new: true });
         if (!updatedUser) {
@@ -94,7 +90,7 @@ const depositFunds = async (req, res) => {
         });
     }
     catch (error) {
-        console.error("Deposit funds error:", error);
+        logger.error("Deposit funds error:", error);
         res.status(500).json({
             success: false,
             message: "Internal server error",
@@ -105,7 +101,7 @@ const depositFunds = async (req, res) => {
 const FetchDepositFunds = async (req, res) => {
     try {
         const { walletAddress } = req.body;
-        console.log("FetchDepositFunds request received:", { walletAddress });
+        logger.debug("[Deposit] fetch request", { walletAddress });
         if (!walletAddress) {
             return res.status(400).json({
                 success: false,
@@ -115,7 +111,7 @@ const FetchDepositFunds = async (req, res) => {
         // Find or create user if they don't exist
         let user = await User.findOne({ walletAddress });
         if (!user) {
-            console.log(`Creating new user for fetch request: ${walletAddress}`);
+            logger.info("[Deposit] creating user on fetch", walletAddress);
             user = await User.create({
                 walletAddress: walletAddress,
                 DepositBalance: 0,
@@ -125,10 +121,6 @@ const FetchDepositFunds = async (req, res) => {
                 payouts: 0
             });
         }
-        console.log("User found/created:", {
-            walletAddress: user.walletAddress,
-            DepositBalance: user.DepositBalance
-        });
         res.status(200).json({
             success: true,
             message: "User balance fetched successfully",
@@ -136,7 +128,7 @@ const FetchDepositFunds = async (req, res) => {
         });
     }
     catch (error) {
-        console.error("FetchDepositFunds error:", error);
+        logger.error("FetchDepositFunds error:", error);
         res.status(500).json({
             success: false,
             message: "Internal server error",

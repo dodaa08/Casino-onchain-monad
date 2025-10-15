@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { User } from "../../Db/schema.js";
 import { ethers } from "ethers";
+import logger from "../../utils/logger.js";
 import { PoolABI } from "../../contracts/abi.js";
 import { Payout } from "../../Db/schema.js";
 
@@ -16,11 +17,11 @@ const WithdrawFundsRouter = Router();
 const withdrawFunds = async (req: any, res: any) => {
     const {walletAddress, amount} = req.body;
     
-    console.log("[Withdraw] Request received:", { walletAddress, amount, type: typeof amount });
+    logger.info("[Withdraw] request", { walletAddress, amount });
     
     // Input validation
     if (!walletAddress || !amount || amount <= 0) {
-        console.log("[Withdraw] Validation failed - invalid input:", { walletAddress, amount });
+        logger.warn("[Withdraw] invalid input", { walletAddress, amount });
         return res.status(400).json({ 
             success: false, 
             message: "Invalid input: walletAddress and positive amount required" 
@@ -37,7 +38,7 @@ const withdrawFunds = async (req: any, res: any) => {
 
     // Minimum withdrawal amount check
     if (amount < 0.001) {
-        console.log("[Withdraw] Amount too small:", amount);
+        logger.warn("[Withdraw] amount too small", amount);
         return res.status(400).json({ 
             success: false, 
             message: "Minimum withdrawal amount is 0.001 ETH" 
@@ -54,21 +55,13 @@ const withdrawFunds = async (req: any, res: any) => {
         // Calculate total available balance (deposits + winnings)
         const totalAvailableBalance = (user.DepositBalance || 0) + (user.totalEarned || 0);
         
-        // Check if user has sufficient total balance
-        // if (totalAvailableBalance < amount) {
-        //     return res.status(400).json({ 
-        //         success: false, 
-        //         message: `Insufficient balance. Available: ${totalAvailableBalance.toFixed(4)} ETH, Requested: ${amount} ETH` 
-        //     });
-        // }
+        
         
         // Check contract balance before attempting withdrawal
         const contractBalance = await poolContract.getBalance();
         const amountInWei = ethers.parseEther(amount.toString());
         
-        console.log(`[Withdraw] Contract balance: ${ethers.formatEther(contractBalance)} ETH`);
-        console.log(`[Withdraw] Requested amount: ${amount} ETH`);
-        console.log(`[Withdraw] Contract balance sufficient:`, contractBalance >= amountInWei);
+        logger.debug("[Withdraw] balance/req", { balance: ethers.formatEther(contractBalance), amount });
         
         if (contractBalance < amountInWei) {
             // Option: Allow partial withdrawal up to available balance
@@ -81,14 +74,14 @@ const withdrawFunds = async (req: any, res: any) => {
         }
         
         // Execute withdrawal transaction - send funds to user's wallet  
-        console.log("[Withdraw] Calling userWithdraw with amount:", amountInWei.toString());
+        logger.debug("[Withdraw] calling payout", amountInWei.toString());
         
         // Note: userWithdraw sends to msg.sender, so we need the user to call it
         // For now, let's use payout (owner function) but we should track balances properly
         const withdrawTx = await poolContract.payout(walletAddress, amountInWei);
-        console.log("[Withdraw] Transaction sent:", withdrawTx.hash);
+        logger.info("[Withdraw] tx sent", withdrawTx.hash);
         const receipt = await withdrawTx.wait();
-        console.log("[Withdraw] Transaction mined:", receipt.hash || receipt.transactionHash || withdrawTx.hash);
+        logger.info("[Withdraw] tx mined", receipt.hash || receipt.transactionHash || withdrawTx.hash);
         
         // Use the transaction hash from withdrawTx if receipt doesn't have it
         const txHash = receipt.hash || receipt.transactionHash || withdrawTx.hash;
@@ -98,9 +91,7 @@ const withdrawFunds = async (req: any, res: any) => {
             const originalDeposit = user.DepositBalance || 0;
             const actualWinnings = amount - originalDeposit;
             
-            console.log(`[Withdraw] Original deposit: ${originalDeposit} ETH`);
-            console.log(`[Withdraw] Total withdrawal: ${amount} ETH`);
-            console.log(`[Withdraw] Actual winnings: ${actualWinnings} ETH`);
+            logger.debug("[Withdraw] computed", { originalDeposit, amount, actualWinnings });
             
             // Reset deposit balance and add only actual winnings to totalEarned
             const updatedUser = await User.findOneAndUpdate(
@@ -140,9 +131,7 @@ const withdrawFunds = async (req: any, res: any) => {
             });
         }
     } catch (error: any) {
-        console.error("Withdrawal error:", error);
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
+        logger.error("Withdrawal error:", error);
         
         // Handle specific contract errors
         if (error.message?.includes("Insufficient balance")) {
@@ -176,7 +165,7 @@ const getContractInfo = async (req: any, res: any) => {
             }
         });
     } catch (error: any) {
-        console.error("Contract info error:", error);
+        logger.error("Contract info error:", error);
         res.status(500).json({
             success: false,
             message: "Failed to get contract info",
