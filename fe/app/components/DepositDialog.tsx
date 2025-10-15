@@ -56,7 +56,6 @@ const DepositDialog = ({ isOpen, onClose, onDepositSuccess }: DepositDialogProps
       
       const depositAmount = parseFloat(amount);
       const txhash = await DepositFunds(depositAmount, signer);
-      console.log("txhash", txhash);
       
 
       const EXPLORER_BASE ="https://testnet.monadexplorer.com/tx/";
@@ -100,7 +99,6 @@ const DepositDialog = ({ isOpen, onClose, onDepositSuccess }: DepositDialogProps
       
       // Start monitoring the deposit in the parent component
       if (onDepositSuccess) {
-        console.log("[DepositDialog] Starting deposit monitoring for amount:", depositAmount);
         onDepositSuccess(depositAmount);
       }
     } catch (error: any) {

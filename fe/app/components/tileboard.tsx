@@ -172,7 +172,6 @@ const TileBoard = ()=>{
 
 	// Rehydrate from backend cache on mount/when session and rows are ready (no localStorage)
 	useEffect(() => {
-		console.log("[SESSION] rehydrate mount ->", { sessionId, rowsLength: rows.length });
 		if (!sessionId || rows.length === 0) return;
 
 		setSpinner(true);
@@ -180,9 +179,7 @@ const TileBoard = ()=>{
 		(async () => {
 			try {
 				const ts = Date.now();
-				console.log("[rehydrate] GET", `${process.env.NEXT_PUBLIC_BE_URL || "http://localhost:8001"}/api/cache/check-cache/${sessionId}?t=${ts}`);
 				const sessionState = await getSessionState(sessionId);
-				console.log("[rehydrate] res", sessionState);
 				if (cancelled) return;
 
 				// Restore playing flag from server first
