@@ -139,6 +139,34 @@ export const useGame = create<GameState>((set, get) => ({
   selectTile: async (rowIndex, tileIndex, walletAddress, isDeath, rowMultiplier, stakeOverride) => {
     set({ rowIndex, tileIndex });
     const { sessionId, stake } = get();
+    
+    // For death tiles, update state immediately and cache asynchronously
+    if (isDeath) {
+      const { initialStake, cumulativePayoutAmount } = get();
+      const ethEarnings = cumulativePayoutAmount / 150;
+      const totalLossAmount = initialStake + ethEarnings;
+      
+      set({ 
+        isPlaying: false, 
+        roundEnded: true, 
+        diedOnDeathTile: true, 
+        payoutAmount: 0,
+        cumulativePayoutAmount: 0,
+        totalLoss: totalLossAmount
+      });
+      
+      // Cache asynchronously without blocking
+      cacheTile({
+        sessionId,
+        rowIndex,
+        tileIndex,
+        isDeath,
+        roundEnded: isDeath,
+        walletAddress,
+      }).catch(console.error);
+      return;
+    }
+    
     try {
       await cacheTile({
         sessionId,
@@ -148,22 +176,6 @@ export const useGame = create<GameState>((set, get) => ({
         roundEnded: isDeath,
         walletAddress,
       });
-
-      if (isDeath) {
-        const { initialStake, cumulativePayoutAmount } = get();
-        const ethEarnings = cumulativePayoutAmount / 150;
-        const totalLossAmount = initialStake + ethEarnings;
-        
-        set({ 
-          isPlaying: false, 
-          roundEnded: true, 
-          diedOnDeathTile: true, 
-          payoutAmount: 0,
-          cumulativePayoutAmount: 0,
-          totalLoss: totalLossAmount
-        });
-        return;
-      }
 
       if (typeof rowMultiplier === "number") {
         const effectiveStake = typeof stakeOverride === "number" ? stakeOverride : stake;

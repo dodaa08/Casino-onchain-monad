@@ -487,7 +487,7 @@ const BottomBar = ()=>{
 	
 	return (
       <>
-      <div className="flex justify-center px-4 pb-4 ml-20 sticky bottom-0">
+      <div className="flex justify-center px-4 pb-4 ml-20 sticky bottom-0 ">
          <div className="w-full max-w-xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 py-6 shadow-gray-900 shadow-inner">
           
         <div className="flex flex-col items-center gap-3">

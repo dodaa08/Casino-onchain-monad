@@ -236,7 +236,7 @@ const TileBoard = ()=>{
 		const actualIdx = rows.length - 1 - visualIdx;
 		const tiles = rows[actualIdx]?.tiles ?? 0
 		
-		// Use serverSeed for death tile calculation
+		// Use serverSeed for death tile calculation (optimized for immediate response)
 		const deathIdx = await getDeathTileIndex(serverSeed || "local-seed", actualIdx, tiles);
 		const isDeath = clickedTileIdx === deathIdx
 		// setIsSession(true);
@@ -256,8 +256,8 @@ const TileBoard = ()=>{
 			endRound();
 			// Reset earnings immediately
 			setCumulativePayoutAmount(0);
-			// Cache the death tile asynchronously
-			selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult);
+			// Cache the death tile asynchronously (don't await)
+			selectTile(actualIdx, clickedTileIdx, walletAddress, isDeath, rowMult).catch(console.error);
 			isProcessingClickRef.current = false;
 			return;
 		}
