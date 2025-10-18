@@ -18,8 +18,7 @@ export default function WalletEvents() {
 
   useEffect(() => {
     if(isLoading){
-     console.log("Loading... userbalance")
-        return;
+         return;
     }
     if(walletAddress && data){
       setUserbalance(Number(data?.value))
@@ -38,10 +37,8 @@ export default function WalletEvents() {
         const res = await createUser({ walletAddress, balance: 0 });
         if (cancelled) return;
         lastCreatedRef.current = walletAddress;
-        console.log("[USER] ensured", res);
       } catch (e: any) {
         lastCreatedRef.current = walletAddress;
-        console.log("[USER] ensure skipped/exists", e?.message || e);
       }
     })();
   

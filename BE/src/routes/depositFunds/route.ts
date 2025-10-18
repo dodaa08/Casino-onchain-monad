@@ -5,7 +5,10 @@ import logger from "../../utils/logger.js";
 
 
 const poolAddress = (process.env.CONTRACT_ADDRESS || process.env.Contract_Address || "").trim();
-const provider = new ethers.JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "");
+const provider = new ethers.JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "", undefined, {
+    polling: true,
+    pollingInterval: 1000
+});
  
 
 
@@ -61,22 +64,51 @@ const depositFunds = async (req: any, res: any) => {
 
        
 
-        // Verify transaction exists and is valid
+        // Verify transaction exists and is valid with retry logic
         logger.debug("[Deposit] fetching tx", txHash);
-        const tx = await provider.getTransaction(txHash);
-        if (!tx) {
-            logger.warn("[Deposit] tx not found");
-            return res.status(400).json({ success: false, message: "Transaction not found" });
-        }
+        let tx, receipt;
         
-        logger.debug("[Deposit] waiting for confirmation");
-        // Wait for transaction to be mined
-        const receipt = await provider.waitForTransaction(txHash);
-        if (!receipt || receipt.status !== 1) {
-            logger.warn("[Deposit] tx failed or unconfirmed");
+        try {
+            // Retry logic for transaction fetching
+            let retries = 3;
+            while (retries > 0) {
+                try {
+                    tx = await provider.getTransaction(txHash);
+                    if (tx) break;
+                } catch (error: any) {
+                    logger.warn(`[Deposit] tx fetch attempt ${4-retries} failed:`, error.message);
+                    retries--;
+                    if (retries === 0) throw error;
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                }
+            }
+            
+            if (!tx) {
+                logger.warn("[Deposit] tx not found after retries");
+                return res.status(400).json({ success: false, message: "Transaction not found" });
+            }
+            
+            logger.debug("[Deposit] waiting for confirmation");
+            // Wait for transaction to be mined with timeout
+            receipt = await Promise.race([
+                provider.waitForTransaction(txHash),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Transaction confirmation timeout")), 60000) // 60 second timeout
+                )
+            ]);
+            
+            if (!receipt || (receipt as any).status !== 1) {
+                logger.warn("[Deposit] tx failed or unconfirmed");
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "Transaction failed or not confirmed" 
+                });
+            }
+        } catch (error: any) {
+            logger.error("[Deposit] transaction verification failed:", error);
             return res.status(400).json({ 
                 success: false, 
-                message: "Transaction failed or not confirmed" 
+                message: `Transaction verification failed: ${error.message}` 
             });
         }
 

@@ -43,8 +43,11 @@ const connectDB_and_cache = async () => {
         logger.error(error);
     }
 };
-app.listen(PORT, "0.0.0.0", () => {
-    connectDB_and_cache();
-    logger.info(`Server is running on port ${PORT}`);
-});
+const startServer = async () => {
+    await connectDB_and_cache();
+    app.listen(PORT, "0.0.0.0", () => {
+        logger.info(`Server is running on port ${PORT}`);
+    });
+};
+startServer();
 //# sourceMappingURL=index.js.map

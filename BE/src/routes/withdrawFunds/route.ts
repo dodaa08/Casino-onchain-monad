@@ -6,7 +6,10 @@ import { PoolABI } from "../../contracts/abi.js";
 import { Payout } from "../../Db/schema.js";
 
 const poolAddress = process.env.Contract_Address || "";
-const provider = new ethers.JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "");
+const provider = new ethers.JsonRpcProvider(process.env.MONAD_TESTNET_RPC || "", undefined, {
+    polling: true,
+    pollingInterval: 1000
+});
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 const poolContract = new ethers.Contract(poolAddress, PoolABI, signer) as any;
