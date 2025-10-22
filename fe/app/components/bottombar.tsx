@@ -11,13 +11,13 @@ import { useGame } from "../store/useGame";
   import { useBalance } from "wagmi";
   import { WithdrawFunds } from "../services/OnchainApi/api";
   import { useWalletClient } from "wagmi";
-  import { getReferredUser } from "@/app/services/api";
+  import { getReferredUser, getSession } from "@/app/services/api";
   import { ReferralRewardPayout } from "../services/OnchainApi/api";
 
 const BottomBar = ()=>{
   const { address: walletAddress } = useAccount();
   const queryClient = useQueryClient();
-  const { isPlaying, roundEnded, diedOnDeathTile, start, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss } = useGame();
+  const { isPlaying, roundEnded, diedOnDeathTile, start, startFunded, payoutAmount, cumulativePayoutAmount, rehydrate, setCumulativePayoutAmount, Replay, setReplay, totalLoss, sessionId, serverCommit } = useGame();
   const [finalPayoutAmount, setFinalPayoutAmount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const deathToastShownRef = useRef(false);
@@ -48,6 +48,25 @@ const BottomBar = ()=>{
       });
     }
   }, [walletAddress]);
+
+  // Rehydrate commit after refresh when session exists
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!serverCommit && sessionId) {
+        try {
+          const res = await getSession(sessionId);
+          const data = res?.data ?? res;
+          if (!cancelled && data?.serverCommit) {
+            useGame.setState({ serverCommit: data.serverCommit });
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    })();
+    return () => { cancelled = true };
+  }, [serverCommit, sessionId]);
 
     useEffect(() => {
       setMounted(true);
@@ -153,7 +172,11 @@ const BottomBar = ()=>{
           });
         }
         
-        start(); // This already resets cumulativePayoutAmount and other game state
+        if (walletAddress) {
+          await startFunded(walletAddress);
+        } else {
+          start(); // demo fallback
+        }
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -167,7 +190,11 @@ const BottomBar = ()=>{
         setJustStartedFresh(true); // Set this FIRST
         setFinalPayoutAmount(0);
         deathToastShownRef.current = false;
-        start();
+        if (walletAddress) {
+          await startFunded(walletAddress);
+        } else {
+          start();
+        }
         setReplay(isReplay);
         
         // Reset the flag after a brief delay
@@ -468,6 +495,31 @@ const BottomBar = ()=>{
          <div className="w-full max-w-2xl bg-[#0b1206]/95 border border-gray-900 rounded-2xl px-6 pt-10 pb-6  shadow-gray-900 shadow-inner">
           
         <div className="flex flex-col justify-between items-center gap-4">
+    {/* Commit badge (funded games) */}
+    {!isPlaying && walletAddress && serverCommit && (
+      <div className="w-full flex justify-center -mt-2">
+        <div className="flex items-center gap-2 bg-[#121a29] border border-gray-700 rounded-lg px-3 py-1">
+          <span className="text-gray-400 text-xs">Commit:</span>
+          <span className="text-lime-400 font-mono text-xs">{serverCommit.slice(0, 8)}...</span>
+          <button
+            onClick={() => { navigator.clipboard.writeText(serverCommit); toast.success("Commit copied!", { autoClose: 2000 }); }}
+            className="h-6 px-2 bg-gray-700 text-white rounded text-[10px] leading-6 hover:bg-gray-600 transition-colors"
+          >
+            Copy
+          </button>
+          {sessionId && roundEnded && (
+            <button
+              onClick={() => {
+                window.location.href = `/verify?sessionId=${sessionId}`;
+              }}
+              className="h-6 px-2 bg-lime-400 text-black rounded text-[10px] leading-6 hover:bg-lime-300 transition-colors"
+            >
+              Verify
+            </button>
+          )}
+        </div>
+      </div>
+    )}
     {/* Left */}
     <div>
       {!mounted || isLoadingBalance || isMonitoringDeposit ? (
@@ -572,10 +624,21 @@ const BottomBar = ()=>{
 					</div>
     ) : roundEnded ? (
       <div className="flex flex-row justify-between items-center gap-4">
-
-        
-    
-    </div>
+        {sessionId && (
+          <div className="w-full flex justify-center">
+            <div className="flex items-center gap-2 bg-[#121a29] border border-gray-700 rounded-lg px-3 py-1">
+              <span className="text-gray-400 text-xs">Session:</span>
+              <span className="text-lime-400 font-mono text-xs">{sessionId.slice(0, 8)}...</span>
+              <button 
+                onClick={() => { navigator.clipboard.writeText(sessionId); toast.success("Session ID copied!", { autoClose: 2000 }); }}
+                className="px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600 transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     ) : null}
   </div>
   

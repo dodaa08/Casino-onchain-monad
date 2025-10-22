@@ -1,17 +1,19 @@
 import { create } from "zustand";
-import { cacheTile } from "@/app/services/api";
+import { cacheTile, StartSession } from "@/app/services/api";
 
 type GameState = {
   isPlaying: boolean;
   roundEnded: boolean;
   diedOnDeathTile: boolean;
   sessionId: string;
+  serverCommit: string;
   rowIndex: number;
   tileIndex: number;
   setSessionId: (id: string) => void;
   Replay: boolean;
   shuffleBoard: boolean; // Flag to trigger board shuffling for any fresh start
-  start: () => void;
+  start: () => void; // demo start
+  startFunded: (walletAddress: string) => Promise<void>; // funded start via backend
   endRound: () => void;
   setReplay: (replay: boolean) => void;
   setShuffleBoard: (shuffle: boolean) => void;
@@ -32,6 +34,7 @@ export const useGame = create<GameState>((set, get) => ({
   roundEnded: false,
   diedOnDeathTile: false,
   sessionId: "",
+  serverCommit: "",
   rowIndex: 0,
   tileIndex: 0,
   payoutAmount: 0,
@@ -58,6 +61,40 @@ export const useGame = create<GameState>((set, get) => ({
     initialStake: get().stake,
     totalLoss: 0
   }),
+  startFunded: async (walletAddress: string) => {
+    if (!walletAddress) return;
+    try {
+      const res = await StartSession(walletAddress);
+      const data = res?.data ?? res; // tolerate either shape
+      const sessionId = data?.sessionId;
+      const serverCommit = data?.serverCommit;
+      set({
+        sessionId: sessionId || "",
+        serverCommit: serverCommit || "",
+        isPlaying: true,
+        roundEnded: false,
+        diedOnDeathTile: false,
+        payoutAmount: 0,
+        cumulativePayoutAmount: 0,
+        cumulativeMultiplier: 1,
+        initialStake: get().stake,
+        totalLoss: 0,
+      });
+    } catch (e) {
+      console.error("[START_FUNDED] failed", e);
+      // fallback to demo-style start if BE fails
+      set({ 
+        isPlaying: true, 
+        roundEnded: false, 
+        diedOnDeathTile: false, 
+        payoutAmount: 0, 
+        cumulativePayoutAmount: 0, 
+        cumulativeMultiplier: 1,
+        initialStake: get().stake,
+        totalLoss: 0
+      });
+    }
+  },
   endRound: () => set({ isPlaying: false, roundEnded: true }),
 
   selectTile: async (rowIndex, tileIndex, walletAddress, isDeath, rowMultiplier, stakeOverride) => {

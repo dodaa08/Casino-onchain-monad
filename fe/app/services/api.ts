@@ -33,24 +33,33 @@ type SessionPayload = {
 
 export async function cacheTile(p: CacheTilePayload) {
   const res = await fetch(`${base}/api/cache/cache-tiles`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
+    method: "POST", 
+    headers: { "Content-Type": "application/json" }, 
+    body: JSON.stringify(p),
   });
 
   const data = await res.json();
   if (!res.ok) {
     console.error("[API] cache-tiles failed", res.status, data);
-    throw new Error(`cacheTile failed: ${res.status}`);
+    throw new Error(`cacheTile failed: ${res.status} - ${data.message || 'Unknown error'}`);
   }
   
   return data;
 }
 
-
-export async function cachePayout(p: { key: string; value: number; roundEnded: boolean }) {
+export async function cachePayout(p: { key: string; value: number; roundEnded: boolean; walletAddress?: string }) {
   const res = await fetch(`${base}/api/cache/cache-payout`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
+    method: "POST", 
+    headers: { "Content-Type": "application/json" }, 
+    body: JSON.stringify(p),
   });
-  if (!res.ok) throw new Error(`cachePayout failed: ${res.status}`);
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] cache-payout failed", res.status, errorData);
+    throw new Error(`cachePayout failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
   return res.json();
 }
 
@@ -178,3 +187,176 @@ export const getTotalEarnings = async (walletAddress: string)=>{
   return res.json();
 }
 
+// Verify if session ID is valid (exists in backend)
+export const verifySessionId = async (sessionId: string)=>{
+  const res = await fetch(`${base}/api/cache/verify-session/${sessionId}`, {
+    method: "GET", headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error(`verifySessionId failed: ${res.status}`);
+  return res.json();
+}
+
+// ===== PROVABLY FAIR GAME API FUNCTIONS =====
+
+// Start a new provably fair game session
+export const startSession = async (walletAddress: string) => {
+  const res = await fetch(`${base}/api/cache/start-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ walletAddress }),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] start-session failed", res.status, errorData);
+    throw new Error(`startSession failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// Get session data (reveals server seed after game ends)
+export const getSession = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/cache/get-session/${sessionId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] get-session failed", res.status, errorData);
+    throw new Error(`getSession failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// Verify session exists and is valid
+export const verifySession = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/cache/verify-session/${sessionId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] verify-session failed", res.status, errorData);
+    throw new Error(`verifySession failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// Start a new session with Redis storage
+export const StartSession = async (walletAddress: string, numRows: number = 12) => {
+  const res = await fetch(`${base}/api/cache/start-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      walletAddress
+    }),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] StartSession failed", res.status, errorData);
+    throw new Error(`StartSession failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// Restore session data from Redis
+export const RestoreSession = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/cache/restore-session/${sessionId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] RestoreSession failed", res.status, errorData);
+    throw new Error(`RestoreSession failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// Get deterministic death index for a row from server
+export const GetDeathIndex = async (sessionId: string, rowIndex: number) => {
+  const res = await fetch(`${base}/api/cache/death-index/${sessionId}/${rowIndex}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] GetDeathIndex failed", res.status, errorData);
+    throw new Error(`GetDeathIndex failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// Reveal server seed (only after round ends; otherwise returns commit)
+export const RevealServerSeed = async (sessionId: string) => {
+  const res = await fetch(`${base}/api/cache/reveal/${sessionId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error("[API] RevealServerSeed failed", res.status, errorData);
+    throw new Error(`RevealServerSeed failed: ${res.status} - ${errorData.message || 'Unknown error'}`);
+  }
+  
+  return res.json();
+};
+
+// ===== TYPES FOR PROVABLY FAIR SYSTEM =====
+
+export type StartSessionPayload = {
+  walletAddress: string;
+};
+
+export type StartSessionResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    sessionId: string;
+    serverCommit: string;
+    clientSeed: string;
+    boardLayout: number[];
+    numRows: number;
+    timestamp: string;
+  };
+};
+
+export type GetSessionResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    sessionId: string;
+    serverSeed: string;
+    serverCommit: string;
+    clientSeed: string;
+    boardLayout: number[];
+    deathTiles: Record<number, number>;
+    numRows: number;
+    timestamp: string;
+    isPlaying: boolean;
+    roundEnded: boolean;
+  };
+};
+
+export type VerifySessionResponse = {
+  success: boolean;
+  valid: boolean;
+  message: string;
+  data: {
+    sessionId: string;
+    isPlaying: boolean;
+    roundEnded: boolean;
+  } | null;
+};

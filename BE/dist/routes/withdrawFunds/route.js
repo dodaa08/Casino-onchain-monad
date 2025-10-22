@@ -53,7 +53,7 @@ const withdrawFunds = async (req, res) => {
             const maxWithdrawable = parseFloat(ethers.formatEther(contractBalance));
             return res.status(400).json({
                 success: false,
-                message: `Contract has insufficient funds. Available: ${ethers.formatEther(contractBalance)} ETH, Requested: ${amount} ETH`,
+                message: `Contract has insufficient funds. Available: ${ethers.formatEther(contractBalance)} MON, Requested: ${amount} MON`,
                 maxWithdrawable: maxWithdrawable
             });
         }

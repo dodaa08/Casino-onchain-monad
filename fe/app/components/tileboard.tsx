@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../store/useGame";
 import { useAccount } from "wagmi";
-import { getSessionState, getLastSessionId } from "@/app/services/api";
+import { getSessionState, getLastSessionId, GetDeathIndex } from "@/app/services/api";
 import deathtile from "../../public/death-skull.svg";
 
 
@@ -168,7 +168,20 @@ const TileBoard = ()=>{
 		// Map visual index back to original rows index
 		const actualIdx = rows.length - 1 - visualIdx;
 		const tiles = rows[actualIdx]?.tiles ?? 0
-		const deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
+		let deathIdx: number;
+		if (sessionId) {
+			try {
+				const res = await GetDeathIndex(sessionId, actualIdx);
+				deathIdx = Number(res?.deathIndex);
+				if (!Number.isFinite(deathIdx)) {
+					deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
+				}
+			} catch (e) {
+				deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
+			}
+		} else {
+			deathIdx = await getDeathTileIndex(sessionId || "local-seed", actualIdx, tiles)
+		}
 		const isDeath = clickedTileIdx === deathIdx
 		// setIsSession(true);
 		
@@ -334,5 +347,3 @@ const TileBoard = ()=>{
 	)
 }
 export default TileBoard;
-
-
