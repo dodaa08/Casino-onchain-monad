@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSession } from "@/app/services/api";
 
@@ -24,7 +24,7 @@ async function getDeathTileIndex(serverSeed: string, rowIdx: number, tiles: numb
   return tiles > 0 ? ((n % tiles) + 1) % tiles : 0;
 }
 
-export default function VerifyPage() {
+function VerifyContent() {
   const params = useSearchParams();
   const sessionId = params.get("sessionId") || "";
   const [loading, setLoading] = useState(false);
@@ -158,6 +158,14 @@ export default function VerifyPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl mx-auto px-4 py-10"><div className="text-gray-300">Loading...</div></div>}>
+      <VerifyContent />
+    </Suspense>
   );
 }
 
