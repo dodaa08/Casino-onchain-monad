@@ -1,4 +1,4 @@
-# 🎰 Casino Onchain
+# Casino Onchain
 
 > *Where luck meets the blockchain*
 
